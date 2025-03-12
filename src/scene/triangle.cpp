@@ -33,14 +33,16 @@ bool Triangle::has_intersection(const Ray &r) const {
   const auto s = r.o - p1;
   const auto s1 = cross(r.d, e2);
   const auto s2 = cross(s, e1);
-  const auto t =  dot(s2, e2) / dot(s1, e1);
+  const auto s1e1 = dot(s1, e1);
+  if (s1e1 == 0.) {return false;}
+  const auto t =  dot(s2, e2) / s1e1;
   if (t < r.min_t || t > r.max_t) {return false;}
-  const auto b1 = dot(s1, s) / dot(s1, e1);
+  const auto b1 = dot(s1, s) / s1e1;
   if (b1 < 0.0 || b1 > 1.0) {return false;}
-  const auto b2 =dot(s2, r.d) / dot(s1, e1);
+  const auto b2 =dot(s2, r.d) / s1e1;
   if (b2 < 0.0 || b2 > 1.0) {return false;}
-  const auto b3 = 1. - b1 - b2;
-  if (b3 < 0.0 || b3 > 1.0) {return false;}
+  const auto b0 = 1. - b1 - b2;
+  if (b0 < 0.0 || b0 > 1.0) {return false;}
   // proved to be intersected here
   r.max_t = t;
   return true;
@@ -56,11 +58,13 @@ bool Triangle::intersect(const Ray &r, Intersection *isect) const {
   const auto s = r.o - p1;
   const auto s1 = cross(r.d, e2);
   const auto s2 = cross(s, e1);
-  const auto t =  dot(s2, e2) / dot(s1, e1);
+  const auto s1e1 = dot(s1, e1);
+  if (s1e1 == 0.) {return false;}
+  const auto t =  dot(s2, e2) / s1e1;
   if (t < r.min_t || t > r.max_t) {return false;}
-  const auto b1 = dot(s1, s) / dot(s1, e1);
+  const auto b1 = dot(s1, s) / s1e1;
   if (b1 < 0.0 || b1 > 1.0) {return false;}
-  const auto b2 =dot(s2, r.d) / dot(s1, e1);
+  const auto b2 =dot(s2, r.d) / s1e1;
   if (b2 < 0.0 || b2 > 1.0) {return false;}
   const auto b0 = 1. - b1 - b2;
   if (b0 < 0.0 || b0 > 1.0) {return false;}
