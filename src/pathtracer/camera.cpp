@@ -199,7 +199,10 @@ Ray Camera::generate_ray(double x, double y) const {
   // Transform to World Coordinates
   rayDir = c2w * rayDir;
   rayDir.normalize();
-  return {pos, rayDir};
+  Ray ray = Ray(pos, rayDir);
+  ray.min_t = nClip;
+  ray.max_t = fClip;
+  return ray;
 }
 
 } // namespace CGL
