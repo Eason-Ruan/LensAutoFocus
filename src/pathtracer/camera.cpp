@@ -195,8 +195,7 @@ Ray Camera::generate_ray(double x, double y) const {
   // Note: hFov and vFov are in degrees.
   //
   // Calculate Ray Vector
-  const auto sensorPoint = Vector3D((2 * x  - 1.) * tan(hFov * M_PI / 360.), (2 * y  - 1.) * tan(vFov * M_PI / 360.) , - 1.);
-  Vector3D rayDir = sensorPoint - pos;
+  auto rayDir = Vector3D((2 * x  - 1.) * tan(hFov * M_PI / 360.), (2 * y  - 1.) * tan(vFov * M_PI / 360.) , - 1.);
   // Transform to World Coordinates
   rayDir = c2w * rayDir;
   rayDir.normalize();
