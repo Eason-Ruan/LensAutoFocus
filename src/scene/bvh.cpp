@@ -171,33 +171,31 @@ bool BVHAccel::has_intersection(const Ray &ray, BVHNode *node) const {
   // Take note that this function has a short-circuit that the
   // Intersection version cannot, since it returns as soon as it finds
   // a hit, it doesn't actually have to find the closest hit.
-
-
-
-  for (auto p : primitives) {
-    total_isects++;
-    if (p->has_intersection(ray))
-      return true;
+  if (node->bb.intersect(ray, ray.min_t, ray.max_t)) {
+    if (! node->isLeaf()) {return has_intersection(ray, node->l) || has_intersection(ray, node->r);}
+    // leaf case
+    for (auto p = node->start; p != node->end; ++p) {
+      total_isects++;
+      if ((*p)->has_intersection(ray))
+        return true;
+    }
   }
   return false;
-
-
 }
 
 bool BVHAccel::intersect(const Ray &ray, Intersection *i, BVHNode *node) const {
   // TODO (Part 2.3):
   // Fill in the intersect function.
-
-
-
   bool hit = false;
-  for (auto p : primitives) {
-    total_isects++;
-    hit = p->intersect(ray, i) || hit;
+  if (node->bb.intersect(ray, ray.min_t, ray.max_t)) {
+    if (! node->isLeaf()) {return has_intersection(ray, node->l) || has_intersection(ray, node->r);}
+    // leaf case
+    for (auto p = node->start; p != node->end; ++p) {
+      total_isects++;
+      hit  = (*p)->intersect(ray, i) || hit;
+    }
   }
   return hit;
-
-
 }
 
 } // namespace SceneObjects
