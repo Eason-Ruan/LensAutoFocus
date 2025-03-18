@@ -171,7 +171,9 @@ bool BVHAccel::has_intersection(const Ray &ray, BVHNode *node) const {
   // Take note that this function has a short-circuit that the
   // Intersection version cannot, since it returns as soon as it finds
   // a hit, it doesn't actually have to find the closest hit.
-  if (node->bb.intersect(ray, ray.min_t, ray.max_t)) {
+  double t_begin = ray.min_t;
+  double t_end = ray.max_t;
+  if (node->bb.intersect(ray, t_begin, t_end)) {
     if (! node->isLeaf()) {return has_intersection(ray, node->l) || has_intersection(ray, node->r);}
     // leaf case
     for (auto p = node->start; p != node->end; ++p) {
@@ -187,8 +189,14 @@ bool BVHAccel::intersect(const Ray &ray, Intersection *i, BVHNode *node) const {
   // TODO (Part 2.3):
   // Fill in the intersect function.
   bool hit = false;
-  if (node->bb.intersect(ray, ray.min_t, ray.max_t)) {
-    if (! node->isLeaf()) {return has_intersection(ray, node->l) || has_intersection(ray, node->r);}
+  double t_begin = ray.min_t;
+  double t_end = ray.max_t;
+  if (node->bb.intersect(ray, t_begin, t_end)) {
+    if (! node->isLeaf()) {
+      bool l_hit = intersect(ray, i, node->l);
+      bool r_hit = intersect(ray, i, node->r);
+      return l_hit | r_hit;
+    }
     // leaf case
     for (auto p = node->start; p != node->end; ++p) {
       total_isects++;
