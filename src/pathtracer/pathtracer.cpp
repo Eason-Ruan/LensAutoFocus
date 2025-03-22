@@ -106,11 +106,49 @@ PathTracer::estimate_direct_lighting_importance(const Ray &r,
   // toward the camera if this is a primary ray)
   const Vector3D hit_p = r.o + r.d * isect.t;
   const Vector3D w_out = w2o * (-r.d);
-  Vector3D L_out;
-
-
-  return Vector3D(1.0);
-
+  auto L_out = Vector3D(0, 0, 0);
+  for (const auto l: scene->lights) {
+    if (l->is_delta_light()) {
+      Vector3D w_in_world, w_in_o, L_in;
+      double pdf, dis;
+      L_in = l->sample_L(hit_p, &w_in_world, &dis, &pdf);
+      if (dot(w_in_world, isect.n) < - EPS_F) {
+        continue;
+      }
+      w_in_o = w2o * w_in_world;
+      auto r_in = Ray(hit_p, w_in_world);
+      r_in.min_t = EPS_F;
+      Intersection bounce_intersect;
+      bvh->intersect(r_in, &bounce_intersect);
+      double bounce_dis = bounce_intersect.t * w_in_world.norm();
+      if (bounce_dis - dis > EPS_F || dis - bounce_dis > EPS_F) {
+        continue;
+      }
+      Vector3D f = isect.bsdf->f(w_out, w_in_o);
+      L_out += f * L_in * cos_theta(w_in_o) / pdf;
+    }else {
+      for (int i = 0; i < ns_area_light; i++) {
+        Vector3D w_in_world, w_in_o, L_in;
+        double pdf, dis;
+        L_in = l->sample_L(hit_p, &w_in_world, &dis, &pdf);
+        if (dot(w_in_world, isect.n) < - EPS_F) {
+          continue;
+        }
+        w_in_o = w2o * w_in_world;
+        auto r_in = Ray(hit_p, w_in_world);
+        r_in.min_t = EPS_F;
+        Intersection bounce_intersect;
+        bvh->intersect(r_in, &bounce_intersect);
+        double bounce_dis = bounce_intersect.t * w_in_world.norm();
+        if (bounce_dis - dis > EPS_F || dis - bounce_dis > EPS_F) {
+          continue;
+        }
+        Vector3D f = isect.bsdf->f(w_out, w_in_o);
+        L_out += f * L_in * cos_theta(w_in_o) / (pdf * static_cast<double>(ns_area_light));
+      }
+    }
+  }
+  return L_out;
 }
 
 Vector3D PathTracer::zero_bounce_radiance(const Ray &r,
@@ -166,7 +204,7 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   // been implemented.
   //
   // REMOVE THIS LINE when you are ready to begin Part 3.
-  
+  direct_hemisphere_sample = false;
   if (!bvh->intersect(r, &isect))
     return Vector3D(0, 0, 0);
   return zero_bounce_radiance(r, isect) + one_bounce_radiance(r, isect);
