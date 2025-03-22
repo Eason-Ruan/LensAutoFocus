@@ -67,15 +67,26 @@ PathTracer::estimate_direct_lighting_hemisphere(const Ray &r,
   // This is the same number of total samples as
   // estimate_direct_lighting_importance (outside of delta lights). We keep the
   // same number of samples for clarity of comparison.
-  int num_samples = scene->lights.size() * ns_area_light;
-  Vector3D L_out;
+  const int num_samples = scene->lights.size() * ns_area_light;
+  auto L_out = Vector3D(0, 0, 0);
 
   // TODO (Part 3): Write your sampling loop here
   // TODO BEFORE YOU BEGIN
-  // UPDATE `est_radiance_global_illumination` to return direct lighting instead of normal shading 
-
-  return Vector3D(1.0);
-
+  // UPDATE `est_radiance_global_illumination` to return direct lighting instead of normal shading
+  for (int i = 0; i < num_samples; i++) {
+    Vector3D w_in, L_in;
+    double pdf;
+    Intersection bounce_intersect;
+    Vector3D sample_f = isect.bsdf->sample_f(w_out, &w_in, &pdf);
+    auto r_in = Ray(hit_p, - o2w * w_in);
+    if (!bvh->intersect(r_in, &bounce_intersect)) {
+      L_in = Vector3D(0, 0, 0);
+    }else {
+      L_in = zero_bounce_radiance(r, isect);
+    }
+    L_out += sample_f * L_in * cos_theta(w_in) / (pdf * num_samples);
+  }
+  return L_out;
 }
 
 Vector3D
@@ -106,9 +117,7 @@ Vector3D PathTracer::zero_bounce_radiance(const Ray &r,
                                           const Intersection &isect) {
   // TODO: Part 3, Task 2
   // Returns the light that results from no bounces of light
-
-
-  return Vector3D(1.0);
+  return isect.bsdf->get_emission();
 
 
 }
@@ -118,7 +127,7 @@ Vector3D PathTracer::one_bounce_radiance(const Ray &r,
   // TODO: Part 3, Task 3
   // Returns either the direct illumination by hemisphere or importance sampling
   // depending on `direct_hemisphere_sample`
-
+  return direct_hemisphere_sample ? estimate_direct_lighting_hemisphere(r, isect) : estimate_direct_lighting_importance(r, isect);
 
   return Vector3D(1.0);
 
@@ -159,11 +168,8 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   // REMOVE THIS LINE when you are ready to begin Part 3.
   
   if (!bvh->intersect(r, &isect))
-    return envLight ? envLight->sample_dir(r) : L_out;
-
-
-  L_out = (isect.t == INF_D) ? debug_shading(r.d) : normal_shading(isect.n);
-
+    return Vector3D(0, 0, 0);
+  return zero_bounce_radiance(r, isect) + one_bounce_radiance(r, isect);
   // TODO (Part 3): Return the direct illumination.
 
   // TODO (Part 4): Accumulate the "direct" and "indirect"
