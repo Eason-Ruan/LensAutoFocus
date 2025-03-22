@@ -79,6 +79,7 @@ PathTracer::estimate_direct_lighting_hemisphere(const Ray &r,
     Intersection bounce_intersect;
     Vector3D sample_f = isect.bsdf->sample_f(w_out, &w_in, &pdf);
     auto r_in = Ray(hit_p, - o2w * w_in);
+    r_in.min_t = EPS_F;
     if (!bvh->intersect(r_in, &bounce_intersect)) {
       L_in = Vector3D(0, 0, 0);
     }else {
