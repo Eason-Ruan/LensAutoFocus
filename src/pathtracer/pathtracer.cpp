@@ -181,16 +181,15 @@ Vector3D PathTracer::at_least_one_bounce_radiance(const Ray &r,
   Vector3D hit_p = r.o + r.d * isect.t;
   Vector3D w_out = w2o * (-r.d);
 
-  Vector3D L_out = isAccumBounces ? zero_bounce_radiance(r, isect) : Vector3D(0, 0, 0);
+  Vector3D L_out = isAccumBounces ? one_bounce_radiance(r, isect) : Vector3D(0, 0, 0);
 
   // TODO: Part 4, Task 2
   // Returns the one bounce radiance + radiance from extra bounces at this point.
   // Should be called recursively to simulate extra bounces.
-  if (r.depth >= max_ray_depth && !isAccumBounces) {
-    return zero_bounce_radiance(r, isect);
-  }
-  if (!coin_flip(0.4) || (r.depth >= max_ray_depth - 1  && isAccumBounces)) {
-    L_out += one_bounce_radiance(r, isect);
+  if (r.depth >= max_ray_depth - 1) {
+    if (isAccumBounces) {
+      return one_bounce_radiance(r, isect);
+    }
     return L_out;
   }
   Vector3D w_in;
@@ -223,7 +222,7 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   isAccumBounces = true;
   if (!bvh->intersect(r, &isect))
     return Vector3D(0, 0, 0);
-  return at_least_one_bounce_radiance(r, isect);
+  return zero_bounce_radiance(r, isect) + at_least_one_bounce_radiance(r, isect);
   // TODO (Part 3): Return the direct illumination.
 
   // TODO (Part 4): Accumulate the "direct" and "indirect"
