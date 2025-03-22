@@ -189,7 +189,7 @@ Vector3D PathTracer::at_least_one_bounce_radiance(const Ray &r,
   if (r.depth >= max_ray_depth && !isAccumBounces) {
     return zero_bounce_radiance(r, isect);
   }
-  if (r.depth >= max_ray_depth - 1  && isAccumBounces) {
+  if (!coin_flip(0.4) || (r.depth >= max_ray_depth - 1  && isAccumBounces)) {
     L_out += one_bounce_radiance(r, isect);
     return L_out;
   }
@@ -202,7 +202,7 @@ Vector3D PathTracer::at_least_one_bounce_radiance(const Ray &r,
   if (!bvh->intersect(r_in, &bounce_intersect)) {
     return isAccumBounces ? L_out : Vector3D(0, 0, 0);
   }
-  L_out += sample_f * at_least_one_bounce_radiance(r_in, bounce_intersect) * cos_theta(w_in) / pdf;
+  L_out += sample_f * at_least_one_bounce_radiance(r_in, bounce_intersect) * cos_theta(w_in) / (pdf * 0.4);
   return L_out;
 }
 
@@ -220,6 +220,7 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   //
   // REMOVE THIS LINE when you are ready to begin Part 3.
   direct_hemisphere_sample = false;
+  isAccumBounces = true;
   if (!bvh->intersect(r, &isect))
     return Vector3D(0, 0, 0);
   return at_least_one_bounce_radiance(r, isect);
