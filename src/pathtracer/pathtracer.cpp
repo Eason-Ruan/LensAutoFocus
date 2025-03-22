@@ -186,7 +186,7 @@ Vector3D PathTracer::at_least_one_bounce_radiance(const Ray &r,
   // TODO: Part 4, Task 2
   // Returns the one bounce radiance + radiance from extra bounces at this point.
   // Should be called recursively to simulate extra bounces.
-  if (r.depth >= max_ray_depth - 1) {
+  if (coin_flip(0.4) || r.depth >= max_ray_depth - 1) {
     if (isAccumBounces) {
       return one_bounce_radiance(r, isect);
     }
@@ -243,14 +243,27 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
   const int num_samples = ns_aa;          // total samples to evaluate
   const auto origin = Vector2D(x, y); // bottom left corner of the pixel
   auto estSample = Vector3D(0.0, 0.0, 0.0);
+  float s1 = 0.0;
+  float s2 = 0.0;
+  int sampled_num = 0;
   for (int i = 0; i < num_samples; i ++) {
     const auto samplePoint = origin + gridSampler->get_sample();
-    estSample += est_radiance_global_illumination(
+    const Vector3D sample = est_radiance_global_illumination(
       camera->generate_ray(samplePoint.x / static_cast<double>(sampleBuffer.w),
-        samplePoint.y / static_cast<double>(sampleBuffer.h))) / num_samples;
+        samplePoint.y / static_cast<double>(sampleBuffer.h)));
+    estSample += sample;
+    sampled_num ++;
+    const float sample_illum = sample.illum();
+    s1 += sample_illum;
+    s2 += sample_illum * sample_illum;
+    if (sampled_num % samplesPerBatch == 0 && sampled_num != 0) {
+      if (1.96 * sqrt((s2 - s1 * s1 / static_cast<float>(sampled_num)) / (static_cast<float>(sampled_num) - 1)) / sqrt(sampled_num) <= maxTolerance * s1 / sampled_num) {
+        break;
+      }
+    }
   }
-  sampleBuffer.update_pixel(estSample, x, y);
-  sampleCountBuffer[x + y * sampleBuffer.w] = num_samples;
+  sampleBuffer.update_pixel(estSample / sampled_num, x, y);
+  sampleCountBuffer[x + y * sampleBuffer.w] = sampled_num;
 }
 
 void PathTracer::autofocus(Vector2D loc) {
