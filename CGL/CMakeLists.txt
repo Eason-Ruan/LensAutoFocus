@@ -79,6 +79,10 @@ set(CGL_SOURCE
     src/lodepng.cpp
     src/tinyxml2.cpp
     src/path.cpp
+        include/CGL/type.h
+        include/CGL/spectrum.h
+        include/CGL/bound2.h
+        src/spectrum.cpp
 )
 
 add_library(CGL STATIC ${CGL_SOURCE})

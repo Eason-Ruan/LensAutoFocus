@@ -26,6 +26,8 @@ class OSDText;
 class Viewer;
 class Timer;
 
+class SPD;
+class bound2;
 } // namespace CGL
 
 #endif // CGL_H
