@@ -1,5 +1,5 @@
-#ifndef PRL2_SPECTRUM_H
-#define PRL2_SPECTRUM_H
+#ifndef CGL_SPECTRUM_H
+#define CGL_SPECTRUM_H
 
 #include <algorithm>
 #include <array>
@@ -7,334 +7,164 @@
 #include <iostream>
 #include <vector>
 
-#include "core/type.h"
-#include "core/vec3.h"
+#include "CGL/vector3D.h"
+#include "CGL/matrix3x3.h"
 
-namespace Prl2 {
+namespace CGL {
 
-using XYZ = Vec3;
-using RGB = Vec3;
+using XYZ = Vector3D;
+using RGB = Vector3D;
 
-// XYZをsRGB色空間に変換する
-// XYZ to sRGB(D65)
-// http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-inline RGB XYZ2RGB(const XYZ& xyz) {
+// Convert XYZ to sRGB (D65)
+// Reference: http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+inline RGB XYZ_to_RGB(const XYZ& xyz) {
   return RGB(
-      3.2404542f * xyz.x() - 1.5371385f * xyz.y() - 0.4985314f * xyz.z(),
-      -0.9692660f * xyz.x() + 1.8760108f * xyz.y() + 0.0415560f * xyz.z(),
-      0.0556434f * xyz.x() - 0.2040259f * xyz.y() + 1.0572252f * xyz.z());
+      3.2404542f * xyz.x - 1.5371385f * xyz.y - 0.4985314f * xyz.z,
+      -0.9692660f * xyz.x + 1.8760108f * xyz.y + 0.0415560f * xyz.z,
+      0.0556434f * xyz.x - 0.2040259f * xyz.y + 1.0572252f * xyz.z);
 }
 
-//等間隔にサンプリングされたSPDを表現する
-//波長と放射束のサンプリング列を保持する
-//波長は[nm]で保持する
-//波長の分割幅より狭いピークを持つSPDは適切に表現されない可能性がある
-//本当はサンプルをそのまま保持して非等間隔のSPDを表現できるようにしたかったが、データサイズが大きすぎるので諦めた
+// Represents a Spectral Power Distribution (SPD) sampled at equal intervals
 class SPD {
  public:
-  // SPDに格納する波長の範囲
-  static constexpr Real LAMBDA_MIN = 380;
-  static constexpr Real LAMBDA_MAX = 780;
+  // Wavelength range stored in SPD
+  static constexpr double LAMBDA_MIN = 380.0;
+  static constexpr double LAMBDA_MAX = 780.0;
 
-  //波長の分割数
+  // Number of wavelength samples
   static constexpr size_t LAMBDA_SAMPLES = 80;
 
-  //分割された波長幅
-  static constexpr Real LAMBDA_INTERVAL =
+  // Interval between sampled wavelengths
+  static constexpr double LAMBDA_INTERVAL =
       (LAMBDA_MAX - LAMBDA_MIN) / LAMBDA_SAMPLES;
 
-  std::array<Real, LAMBDA_SAMPLES> phi;  //放射束
+  std::array<double, LAMBDA_SAMPLES> phi;  // Radiant flux
 
-  // 0で初期化
-  SPD() {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] = 0;
-    }
-  }
+  // Default constructor initializes to zero
+  SPD() { phi.fill(0.0); }
 
-  // ある値で初期化
-  SPD(const Real& v) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] = v;
-    }
-  }
+  // Initialize with a constant value
+  explicit SPD(double value) { phi.fill(value); }
 
-  //任意の波長と放射束のサンプリング列から等間隔のSPDを構築
-  //波長と対応する放射束は昇順で並んでいると仮定している
-  SPD(const std::vector<Real>& _lambda, const std::vector<Real>& _phi);
+  // Construct SPD from arbitrary wavelength and flux samples
+  SPD(const std::vector<double>& wavelengths, const std::vector<double>& fluxes);
 
-  // i番目の放射束を返す
-  Real operator[](size_t i) const {
-    assert(i < SPD::LAMBDA_SAMPLES);
+  // Access radiant flux at a specific index
+  double operator[](size_t i) const {
+    assert(i < LAMBDA_SAMPLES);
     return phi[i];
   }
 
-  // クリアする
-  void clear() {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] = 0;
-    }
+  // Clear all values
+  void clear() { phi.fill(0.0); }
+
+  // Add radiant flux at a specific wavelength
+  void add_flux(double wavelength, double flux);
+
+  // Check if SPD is black (all zero)
+  bool is_black() const {
+    return std::all_of(phi.begin(), phi.end(), [](double v) { return v == 0.0; });
   }
 
-  //分光放射束を加算する
-  void addPhi(const Real& _lambda, const Real& _phi);
+  // Linearly interpolate radiant flux at a specific wavelength
+  double sample(double wavelength) const;
 
-  //黒色か返す
-  bool isBlack() const {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      if (phi[i] != 0.0f) {
-        return false;
-      }
-    }
-    return true;
-  }
+  // Convert SPD to XYZ color space
+  XYZ to_XYZ() const;
 
-  //指定した波長の放射束を線形補間して返す
-  // l : 波長[nm]
-  Real sample(const Real& l) const;
-
-  // XYZ色空間に変換する
-  XYZ toXYZ() const;
-
-  // sRGB色空間に変換する
-  // XYZ to sRGB(D65)
-  // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-  RGB toRGB() const {
-    XYZ xyz = this->toXYZ();
-    RGB rgb = XYZ2RGB(xyz);
-    return clamp(rgb, Vec3(0), Vec3(INF));
+  // Convert SPD to sRGB color space
+  RGB to_RGB() const {
+    XYZ xyz = to_XYZ();
+    RGB rgb = XYZ_to_RGB(xyz);
+    return clamp(rgb, Vector3D(0), Vector3D(INFINITY));
   }
 
-  //演算
-  SPD& operator+=(const SPD& spd) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] += spd.phi[i];
-    }
-    return *this;
-  }
-  SPD& operator+=(const Real& k) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] += k;
-    }
-    return *this;
-  }
-  SPD& operator-=(const SPD& spd) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] -= spd.phi[i];
-    }
-    return *this;
-  }
-  SPD& operator-=(const Real& k) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] -= k;
-    }
-    return *this;
-  }
-  SPD& operator*=(const SPD& spd) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] *= spd.phi[i];
-    }
-    return *this;
-  }
-  SPD& operator*=(const Real& k) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] *= k;
-    }
-    return *this;
-  }
-  SPD& operator/=(const SPD& spd) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] /= spd.phi[i];
-    }
-    return *this;
-  }
-  SPD& operator/=(const Real& k) {
-    for (size_t i = 0; i < LAMBDA_SAMPLES; ++i) {
-      phi[i] /= k;
-    }
-    return *this;
-  }
+  // Arithmetic operations
+  SPD& operator+=(const SPD& other);
+  SPD& operator-=(const SPD& other);
+  SPD& operator*=(const SPD& other);
+  SPD& operator/=(const SPD& other);
+  SPD& operator+=(double scalar);
+  SPD& operator-=(double scalar);
+  SPD& operator*=(double scalar);
+  SPD& operator/=(double scalar);
 
-  //等色関数(CIE1931)
-  // http://cvrl.ucl.ac.uk/cmfs.htm
-  static constexpr int color_matching_func_samples = 85;
-  static constexpr Real color_matching_func_x[color_matching_func_samples] = {
-      0.001368000000f, 0.002236000000f, 0.004243000000f, 0.007650000000f,
-      0.014310000000f, 0.023190000000f, 0.043510000000f, 0.077630000000f,
-      0.134380000000f, 0.214770000000f, 0.283900000000f, 0.328500000000f,
-      0.348280000000f, 0.348060000000f, 0.336200000000f, 0.318700000000f,
-      0.290800000000f, 0.251100000000f, 0.195360000000f, 0.142100000000f,
-      0.095640000000f, 0.057950010000f, 0.032010000000f, 0.014700000000f,
-      0.004900000000f, 0.002400000000f, 0.009300000000f, 0.029100000000f,
-      0.063270000000f, 0.109600000000f, 0.165500000000f, 0.225749900000f,
-      0.290400000000f, 0.359700000000f, 0.433449900000f, 0.512050100000f,
-      0.594500000000f, 0.678400000000f, 0.762100000000f, 0.842500000000f,
-      0.916300000000f, 0.978600000000f, 1.026300000000f, 1.056700000000f,
-      1.062200000000f, 1.045600000000f, 1.002600000000f, 0.938400000000f,
-      0.854449900000f, 0.751400000000f, 0.642400000000f, 0.541900000000f,
-      0.447900000000f, 0.360800000000f, 0.283500000000f, 0.218700000000f,
-      0.164900000000f, 0.121200000000f, 0.087400000000f, 0.063600000000f,
-      0.046770000000f, 0.032900000000f, 0.022700000000f, 0.015840000000f,
-      0.011359160000f, 0.008110916000f, 0.005790346000f, 0.004109457000f,
-      0.002899327000f, 0.002049190000f, 0.001439971000f, 0.000999949300f,
-      0.000690078600f, 0.000476021300f, 0.000332301100f, 0.000234826100f,
-      0.000166150500f, 0.000117413000f, 0.000083075270f, 0.000058706520f,
-      0.000041509940f};
-  static constexpr Real color_matching_func_y[color_matching_func_samples] = {
-      0.000039000000f, 0.000064000000f, 0.000120000000f, 0.000217000000f,
-      0.000396000000f, 0.000640000000f, 0.001210000000f, 0.002180000000f,
-      0.004000000000f, 0.007300000000f, 0.011600000000f, 0.016840000000f,
-      0.023000000000f, 0.029800000000f, 0.038000000000f, 0.048000000000f,
-      0.060000000000f, 0.073900000000f, 0.090980000000f, 0.112600000000f,
-      0.139020000000f, 0.169300000000f, 0.208020000000f, 0.258600000000f,
-      0.323000000000f, 0.407300000000f, 0.503000000000f, 0.608200000000f,
-      0.710000000000f, 0.793200000000f, 0.862000000000f, 0.914850100000f,
-      0.954000000000f, 0.980300000000f, 0.994950100000f, 1.000000000000f,
-      0.995000000000f, 0.978600000000f, 0.952000000000f, 0.915400000000f,
-      0.870000000000f, 0.816300000000f, 0.757000000000f, 0.694900000000f,
-      0.631000000000f, 0.566800000000f, 0.503000000000f, 0.441200000000f,
-      0.381000000000f, 0.321000000000f, 0.265000000000f, 0.217000000000f,
-      0.175000000000f, 0.138200000000f, 0.107000000000f, 0.081600000000f,
-      0.061000000000f, 0.044580000000f, 0.032000000000f, 0.023200000000f,
-      0.017000000000f, 0.011920000000f, 0.008210000000f, 0.005723000000f,
-      0.004102000000f, 0.002929000000f, 0.002091000000f, 0.001484000000f,
-      0.001047000000f, 0.000740000000f, 0.000520000000f, 0.000361100000f,
-      0.000249200000f, 0.000171900000f, 0.000120000000f, 0.000084800000f,
-      0.000060000000f, 0.000042400000f, 0.000030000000f, 0.000021200000f,
-      0.000014990000f};
-  static constexpr Real color_matching_func_z[color_matching_func_samples] = {
-      0.006450001000f, 0.010549990000f, 0.020050010000f, 0.036210000000f,
-      0.067850010000f, 0.110200000000f, 0.207400000000f, 0.371300000000f,
-      0.645600000000f, 1.039050100000f, 1.385600000000f, 1.622960000000f,
-      1.747060000000f, 1.782600000000f, 1.772110000000f, 1.744100000000f,
-      1.669200000000f, 1.528100000000f, 1.287640000000f, 1.041900000000f,
-      0.812950100000f, 0.616200000000f, 0.465180000000f, 0.353300000000f,
-      0.272000000000f, 0.212300000000f, 0.158200000000f, 0.111700000000f,
-      0.078249990000f, 0.057250010000f, 0.042160000000f, 0.029840000000f,
-      0.020300000000f, 0.013400000000f, 0.008749999000f, 0.005749999000f,
-      0.003900000000f, 0.002749999000f, 0.002100000000f, 0.001800000000f,
-      0.001650001000f, 0.001400000000f, 0.001100000000f, 0.001000000000f,
-      0.000800000000f, 0.000600000000f, 0.000340000000f, 0.000240000000f,
-      0.000190000000f, 0.000100000000f, 0.000049999990f, 0.000030000000f,
-      0.000020000000f, 0.000010000000f, 0.000000000000f, 0.000000000000f,
-      0.000000000000f, 0.000000000000f, 0.000000000000f, 0.000000000000f,
-      0.000000000000f, 0.000000000000f, 0.000000000000f, 0.000000000000f,
-      0.000000000000f, 0.000000000000f, 0.000000000000f, 0.000000000000f,
-      0.000000000000f, 0.000000000000f, 0.000000000000f, 0.000000000000f,
-      0.000000000000f, 0.000000000000f, 0.000000000000f, 0.000000000000f,
-      0.000000000000f, 0.000000000000f, 0.000000000000f, 0.000000000000f,
-      0.000000000000f};
+  // CIE 1931 color matching functions
+  static constexpr int COLOR_MATCHING_FUNC_SAMPLES = 85;
+  static constexpr double COLOR_MATCHING_FUNC_X[COLOR_MATCHING_FUNC_SAMPLES];
+  static constexpr double COLOR_MATCHING_FUNC_Y[COLOR_MATCHING_FUNC_SAMPLES];
+  static constexpr double COLOR_MATCHING_FUNC_Z[COLOR_MATCHING_FUNC_SAMPLES];
 };
 
-// SPDどうしの演算
-//要素ごとに演算を行う
-inline SPD operator+(const SPD& spd1, const SPD& spd2) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd1.phi[i] + spd2.phi[i];
-  }
-  return ret;
-}
-inline SPD operator-(const SPD& spd1, const SPD& spd2) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd1.phi[i] - spd2.phi[i];
-  }
-  return ret;
-}
-inline SPD operator*(const SPD& spd1, const SPD& spd2) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd1.phi[i] * spd2.phi[i];
-  }
-  return ret;
-}
-inline SPD operator/(const SPD& spd1, const SPD& spd2) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd1.phi[i] / spd2.phi[i];
-  }
-  return ret;
-}
+// Arithmetic operators for SPD
+SPD operator+(const SPD& lhs, const SPD& rhs);
+SPD operator-(const SPD& lhs, const SPD& rhs);
+SPD operator*(const SPD& lhs, const SPD& rhs);
+SPD operator/(const SPD& lhs, const SPD& rhs);
+SPD operator+(const SPD& spd, double scalar);
+SPD operator-(const SPD& spd, double scalar);
+SPD operator*(const SPD& spd, double scalar);
+SPD operator/(const SPD& spd, double scalar);
+SPD operator+(double scalar, const SPD& spd);
+SPD operator-(double scalar, const SPD& spd);
+SPD operator*(double scalar, const SPD& spd);
+SPD operator/(double scalar, const SPD& spd);
 
-// SPDとRealの演算
-inline SPD operator+(const SPD& spd, const Real& k) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd.phi[i] + k;
-  }
-  return ret;
-}
-inline SPD operator+(const Real& k, const SPD& spd) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd.phi[i] + k;
-  }
-  return ret;
-}
-inline SPD operator-(const SPD& spd, const Real& k) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd.phi[i] - k;
-  }
-  return ret;
-}
-inline SPD operator-(const Real& k, const SPD& spd) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = k - spd.phi[i];
-  }
-  return ret;
-}
-inline SPD operator*(const SPD& spd, const Real& k) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd.phi[i] * k;
-  }
-  return ret;
-}
-inline SPD operator*(const Real& k, const SPD& spd) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd.phi[i] * k;
-  }
-  return ret;
-}
-inline SPD operator/(const SPD& spd, const Real& k) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = spd.phi[i] / k;
-  }
-  return ret;
-}
-inline SPD operator/(const Real& k, const SPD& spd) {
-  SPD ret;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    ret.phi[i] = k / spd.phi[i];
-  }
-  return ret;
-}
+// Normalize SPD
+SPD normalize(const SPD& spd);
 
-// 正規化
-inline SPD normalize(const SPD& spd) {
-  const auto m = std::max_element(spd.phi.begin(), spd.phi.end());
-  return spd / *m;
-}
+// Output SPD to stream
+std::ostream& operator<<(std::ostream& os, const SPD& spd);
 
-// SPDの出力
-inline std::ostream& operator<<(std::ostream& stream, const SPD& spd) {
-  stream << std::setw(12) << "lambda" << std::setw(12) << "phi" << std::endl;
-  for (size_t i = 0; i < SPD::LAMBDA_SAMPLES; ++i) {
-    const Real lambda = SPD::LAMBDA_MIN + i * SPD::LAMBDA_INTERVAL;
-    stream << std::setw(12) << lambda << std::setw(12) << spd.phi[i]
-           << std::endl;
-  }
-  return stream;
-}
+// Convert RGB to SPD (Smits 2001)
+SPD RGB_to_Spectrum(const RGB& rgb);
 
-// An RGB to Spectrum Conversion for Reflectances, Smits(2001)
-SPD RGB2Spectrum(const RGB& rgb);
+// CIE 1931 Color Matching Functions
+// Reference: http://cvrl.ucl.ac.uk/cmfs.htm
+static constexpr int COLOR_MATCHING_FUNC_SAMPLES = 85;
 
-}  // namespace Prl2
+static constexpr double COLOR_MATCHING_FUNC_X[COLOR_MATCHING_FUNC_SAMPLES] = {
+    0.001368, 0.002236, 0.004243, 0.007650, 0.014310, 0.023190, 0.043510, 0.077630,
+    0.134380, 0.214770, 0.283900, 0.328500, 0.348280, 0.348060, 0.336200, 0.318700,
+    0.290800, 0.251100, 0.195360, 0.142100, 0.095640, 0.057950, 0.032010, 0.014700,
+    0.004900, 0.002400, 0.009300, 0.029100, 0.063270, 0.109600, 0.165500, 0.225750,
+    0.290400, 0.359700, 0.433450, 0.512050, 0.594500, 0.678400, 0.762100, 0.842500,
+    0.916300, 0.978600, 1.026300, 1.056700, 1.062200, 1.045600, 1.002600, 0.938400,
+    0.854450, 0.751400, 0.642400, 0.541900, 0.447900, 0.360800, 0.283500, 0.218700,
+    0.164900, 0.121200, 0.087400, 0.063600, 0.046770, 0.032900, 0.022700, 0.015840,
+    0.011359, 0.008111, 0.005790, 0.004109, 0.002899, 0.002049, 0.001440, 0.001000,
+    0.000690, 0.000476, 0.000332, 0.000235, 0.000166, 0.000117, 0.000083, 0.000059,
+    0.000042
+};
 
-#endif
+static constexpr double COLOR_MATCHING_FUNC_Y[COLOR_MATCHING_FUNC_SAMPLES] = {
+    0.000039, 0.000064, 0.000120, 0.000217, 0.000396, 0.000640, 0.001210, 0.002180,
+    0.004000, 0.007300, 0.011600, 0.016840, 0.023000, 0.029800, 0.038000, 0.048000,
+    0.060000, 0.073900, 0.090980, 0.112600, 0.139020, 0.169300, 0.208020, 0.258600,
+    0.323000, 0.407300, 0.503000, 0.608200, 0.710000, 0.793200, 0.862000, 0.914850,
+    0.954000, 0.980300, 0.994950, 1.000000, 0.995000, 0.978600, 0.952000, 0.915400,
+    0.870000, 0.816300, 0.757000, 0.694900, 0.631000, 0.566800, 0.503000, 0.441200,
+    0.381000, 0.321000, 0.265000, 0.217000, 0.175000, 0.138200, 0.107000, 0.081600,
+    0.061000, 0.044580, 0.032000, 0.023200, 0.017000, 0.011920, 0.008210, 0.005723,
+    0.004102, 0.002929, 0.002091, 0.001484, 0.001047, 0.000740, 0.000520, 0.000361,
+    0.000249, 0.000172, 0.000120, 0.000085, 0.000060, 0.000042, 0.000030, 0.000021,
+    0.000015
+};
+
+static constexpr double COLOR_MATCHING_FUNC_Z[COLOR_MATCHING_FUNC_SAMPLES] = {
+    0.006450, 0.010550, 0.020050, 0.036210, 0.067850, 0.110200, 0.207400, 0.371300,
+    0.645600, 1.039050, 1.385600, 1.622960, 1.747060, 1.782600, 1.772110, 1.744100,
+    1.669200, 1.528100, 1.287640, 1.041900, 0.812950, 0.616200, 0.465180, 0.353300,
+    0.272000, 0.212300, 0.158200, 0.111700, 0.078250, 0.057250, 0.042160, 0.029840,
+    0.020300, 0.013400, 0.008750, 0.005750, 0.003900, 0.002750, 0.002100, 0.001800,
+    0.001650, 0.001400, 0.001100, 0.001000, 0.000800, 0.000600, 0.000340, 0.000240,
+    0.000190, 0.000100, 0.000050, 0.000030, 0.000020, 0.000010, 0.000000, 0.000000,
+    0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
+    0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
+    0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
+    0.000000
+};
+
+}  // namespace CGL
+
+#endif  // CGL_SPECTRUM_H
