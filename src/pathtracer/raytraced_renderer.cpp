@@ -285,6 +285,11 @@ void RaytracedRenderer::start_raytracing() {
   pt->camera = camera;
   pt->scene = scene;
 
+  /* lens */
+  pt->lensSystem = std::make_shared<lensSystem>("./data/dgauss50mm.json", film);
+  pt->lensSystem->focus(-0.2);
+  pt->lensSystem->computeExitPupilBounds();
+
   if (!render_cell) {
     frameBuffer.clear();
     num_tiles_w = width / imageTileSize + 1;

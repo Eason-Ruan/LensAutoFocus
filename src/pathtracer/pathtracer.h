@@ -18,6 +18,10 @@ using CGL::SceneObjects::EnvironmentLight;
 using CGL::SceneObjects::BVHNode;
 using CGL::SceneObjects::BVHAccel;
 
+/* lens */
+#include "lens-system/lens-system.h"
+LensSystem* lensSystem = nullptr;
+
 namespace CGL {
 
     class PathTracer {
@@ -95,6 +99,8 @@ namespace CGL {
 
         Scene* scene;         ///< current scene
         Camera* camera;       ///< current camera
+
+        std::shared_prt<lensSystem> lensSystem; ///< lens system
 
         // Tonemapping Controls //
 

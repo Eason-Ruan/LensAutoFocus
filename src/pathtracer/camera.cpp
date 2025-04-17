@@ -205,4 +205,23 @@ Ray Camera::generate_ray(double x, double y) const {
   return ray;
 }
 
+/* lens */
+Ray Camera::generate_ray_with_lens(double x, double y, Sampler& sampler) const {
+  //归一化到[-1, 1]，但我其实不确定传入的xy和调用的方法对不对
+  double u = (2.0 * (samplePoint.x + sampler->getNext()) - samplerBuffer.w) / (double) sampleBuffer.w;
+  double v = (2.0 * (samplePoint.y + sampler->getNext()) - samplerBuffer.h) / (double) sampleBuffer.h;
+ 
+  //采样波长
+  double lambda_pdf = 1.0 / (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN);
+  double lambda = SPD::LAMBDA_MIN + (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN) * sampler->getNext();
+
+  //采样光线
+  Ray ray_out, 
+  double ray_pdf;
+  if (!lensSystem->sampleRay(u, v, lambda, *sampler, ray, ray_pdf, false)) {
+    continue; // 采样失败跳过
+  }
+  return ray_out;
+}
+
 } // namespace CGL
