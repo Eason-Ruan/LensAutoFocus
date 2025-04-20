@@ -9,16 +9,13 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "nlohmann/json.hpp"
+#include "lens-parallel/parallel.h"
+#include "../ext/json/single_include/nlohmann/json.hpp"
 using JSON = nlohmann::json;
-
-#include "CGL/parallel.h"
 
 namespace CGL {
 
-LensSystem::LensSystem(const std::string& filename, const std::shared_ptr<Film>& film)
-    : film(film) {
+LensSystem::LensSystem(const std::string& filename, const double _width, const double _height) : width(_width), height(_height), image_focal_length(0.){
   // Load JSON
   if (!load_json(filename)) exit(EXIT_FAILURE);
 
@@ -42,9 +39,12 @@ LensSystem::LensSystem(const std::string& filename, const std::shared_ptr<Film>&
   compute_cardinal_points();
 
   // Compute FOV
-  horizontal_fov = 2.0 * std::atan2(film->width_length, 2.0 * image_focal_length);
-  vertical_fov = 2.0 * std::atan2(film->height_length, 2.0 * image_focal_length);
-  diagonal_fov = 2.0 * std::atan2(film->diagonal_length, 2.0 * image_focal_length);
+  if (image_focal_length == 0.) {
+    std::cerr << "Error: No focal length specified!" << std::endl;
+  }
+  horizontal_fov = 2.0 * std::atan2(width, 2.0 * image_focal_length);
+  vertical_fov = 2.0 * std::atan2(height, 2.0 * image_focal_length);
+  diagonal_fov = 2.0 * std::atan2(sqrt(width * width + height * height), 2.0 * image_focal_length);
 }
 
 bool LensSystem::load_json(const std::string& filename) {
@@ -107,8 +107,8 @@ double LensSystem::back_focal_length() const {
   return std::abs(image_focal_z - elements.back().z);
 }
 
-bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Sampler* sampler) const {
-  int element_index = ray_in.direction.z > 0 ? -1 : elements.size();
+bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Prl2::Sampler* sampler) const {
+  int element_index = ray_in.d.z > 0 ? -1 : elements.size();
   const int initial_element_index = element_index;
 
   Ray ray = ray_in;
@@ -116,7 +116,7 @@ bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Samp
 
   while (true) {
     // Update element index
-    element_index += ray.direction.z > 0 ? 1 : -1;
+    element_index += ray.d.z > 0 ? 1 : -1;
     if (element_index < 0 || element_index >= elements.size()) break;
     const LensElement& element = elements[element_index];
 
@@ -126,7 +126,7 @@ bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Samp
       if (!element.intersect(ray, res)) return false;
 
       // Update ray
-      ray.origin = res.hit_pos;
+      ray.o = res.hitPos;
 
       // Update IOR
       ior = 1.0;
@@ -137,7 +137,7 @@ bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Samp
       double next_ior = 1.0;
 
       // Compute next element
-      const int next_element_index = ray.direction.z > 0 ? element_index : element_index - 1;
+      const int next_element_index = ray.d.z > 0 ? element_index : element_index - 1;
       if (next_element_index >= 0) {
         const LensElement& next_element = elements[next_element_index];
         if (!next_element.is_stop) {
@@ -152,25 +152,25 @@ bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Samp
       // Refract and reflect
       Vector3D next_direction;
       if (reflection) {
-        const double fr = fresnel(-ray.direction, res.hit_normal, ior, next_ior);
-        if (sampler->get_next() < fr) {
+        const double fr = fresnel(-ray.d, res.hitNormal, ior, next_ior);
+        if (sampler->getNext() < fr) {
           // Reflection
-          next_direction = reflect(-ray.direction, res.hit_normal);
+          next_direction = reflect(-ray.d, res.hitNormal);
         } else {
           // Refract
-          if (!refract(-ray.direction, next_direction, res.hit_normal, ior, next_ior)) {
+          if (!refract(-ray.d, next_direction, res.hitNormal, ior, next_ior)) {
             // Total reflection
-            next_direction = reflect(-ray.direction, res.hit_normal);
+            next_direction = reflect(-ray.d, res.hitNormal);
           }
         }
       } else {
-        if (!refract(-ray.direction, next_direction, res.hit_normal, ior, next_ior))
+        if (!refract(-ray.d, next_direction, res.hitNormal, ior, next_ior))
           return false;
       }
 
       // Set next ray
-      ray.origin = res.hit_pos;
-      ray.direction = next_direction.unit();
+      ray.o = res.hitPos;
+      ray.d = next_direction.unit();
 
       // Update IOR
       ior = next_ior;
@@ -189,8 +189,7 @@ bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Samp
 std::vector<Ray> LensSystem::raytrace_path(const Ray& ray_in) const {
   std::vector<Ray> result;
 
-  int element_index = ray_in.direction.z > 0 ? -1 : elements.size();
-  const int initial_element_index = element_index;
+  int element_index = ray_in.d.z > 0 ? -1 : elements.size();
 
   Ray ray = ray_in;
   double ior = 1.0;
@@ -199,7 +198,7 @@ std::vector<Ray> LensSystem::raytrace_path(const Ray& ray_in) const {
     result.push_back(ray);
 
     // Update element index
-    element_index += ray.direction.z > 0 ? 1 : -1;
+    element_index += ray.d.z > 0 ? 1 : -1;
     if (element_index < 0 || element_index >= elements.size()) break;
     const LensElement& element = elements[element_index];
 
@@ -209,7 +208,7 @@ std::vector<Ray> LensSystem::raytrace_path(const Ray& ray_in) const {
       if (!element.intersect(ray, res)) break;
 
       // Update ray
-      ray.origin = res.hit_pos;
+      ray.o = res.hitPos;
 
       // Update IOR
       ior = 1.0;
@@ -221,7 +220,7 @@ std::vector<Ray> LensSystem::raytrace_path(const Ray& ray_in) const {
 
       // Compute next element
       const int next_element_index =
-          ray.direction.z > 0 ? element_index : element_index - 1;
+          ray.d.z > 0 ? element_index : element_index - 1;
       if (next_element_index >= 0) {
         const LensElement& next_element = elements[next_element_index];
         if (!next_element.is_stop) {
@@ -235,12 +234,12 @@ std::vector<Ray> LensSystem::raytrace_path(const Ray& ray_in) const {
 
       // Refract
       Vector3D next_direction;
-      if (!refract(-ray.direction, next_direction, res.hit_normal, ior, next_ior))
+      if (!refract(-ray.d, next_direction, res.hitNormal, ior, next_ior))
         break;
 
       // Set next ray
-      ray.origin = res.hit_pos;
-      ray.direction = next_direction.unit();
+      ray.o = res.hitPos;
+      ray.d = next_direction.unit();
 
       // Update IOR
       ior = next_ior;
@@ -354,7 +353,7 @@ void LensSystem::compute_cardinal_points() {
   object_focal_length = -(object_focal_z - object_principal_z);
 }
 
-bool LensSystem::focus(double focus_z) {
+bool LensSystem::focus(const double focus_z) {
   const double delta =
       0.5 * (object_principal_z - focus_z + image_principal_z -
              std::sqrt((object_principal_z - focus_z - image_principal_z) *
@@ -384,7 +383,7 @@ Bounds2 LensSystem::compute_exit_pupil_bound(const Vector2D& p) const {
           2.0 * static_cast<double>(i) / num_exit_pupil_bounds_samples - 1.0;
       const double v =
           2.0 * static_cast<double>(j) / num_exit_pupil_bounds_samples - 1.0;
-      const Vector3D sample_point =
+      const auto sample_point =
           Vector3D(last_element.aperture_radius * u,
                    last_element.aperture_radius * v, last_element.z);
 
@@ -396,7 +395,7 @@ Bounds2 LensSystem::compute_exit_pupil_bound(const Vector2D& p) const {
       if (!raytrace(ray_in, ray_out)) continue;
 
       // Extend bounding box
-      bounds = extend_bounds(bounds, Vector2D(sample_point.x, sample_point.y));
+      bounds = extendBounds(bounds, Vector2D(sample_point.x, sample_point.y));
     }
   }
 
@@ -406,12 +405,12 @@ Bounds2 LensSystem::compute_exit_pupil_bound(const Vector2D& p) const {
 bool LensSystem::compute_exit_pupil_bounds() {
   exit_pupil_bounds.resize(num_exit_pupil_bounds);
 
-  Parallel parallel;
+  Prl2::Parallel parallel;
 
-  parallel.parallel_for_1d(
-      [&](unsigned int idx) {
+  parallel.parallelFor1D(
+      [&](const unsigned int idx) {
         const double r = static_cast<double>(idx) / num_exit_pupil_bounds * 0.5 *
-                         film->diagonal_length;
+                         sqrt(width * width + height * height);
         exit_pupil_bounds[idx] = compute_exit_pupil_bound(Vector2D(r, 0));
 
         std::cout << "Finished " << idx << "th computation of exit pupil bounds"
@@ -423,21 +422,21 @@ bool LensSystem::compute_exit_pupil_bounds() {
   return true;
 }
 
-bool LensSystem::sample_ray(double u, double v, double lambda, Sampler& sampler,
-                            Ray& ray_out, double& pdf, bool reflection) const {
+bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampler& sampler,
+                            Ray& ray_out, double& pdf, const bool reflection) const {
   // Compute position on film
-  const Vector2D p = film->compute_position(u, v);
+  const Vector2D p = {0.5f * width * u, 0.5f * height * v};
 
   // Choose exit pupil bound
   const double r = p.norm();
   const unsigned int exit_pupil_bounds_index =
-      r / (0.5 * film->diagonal_length) * num_exit_pupil_bounds;
+      r / (0.5 * sqrt(width * width + height * height)) * num_exit_pupil_bounds;
   const Bounds2& exit_pupil_bound = exit_pupil_bounds[exit_pupil_bounds_index];
-  if (!exit_pupil_bound.is_valid()) return false;
+  if (!exit_pupil_bound.isValid()) return false;
 
   // Sample point on exit pupil bound
   double pdf_area;
-  Vector2D p_bound = exit_pupil_bound.sample_point(sampler, pdf_area);
+  Vector2D p_bound = exit_pupil_bound.samplePoint(pdf_area);
 
   // Rotate sampled point
   if (r > 0) {
@@ -462,11 +461,11 @@ bool LensSystem::sample_ray(double u, double v, double lambda, Sampler& sampler,
 }
 
 GridData<std::pair<bool, Ray>> LensSystem::raytrace_n(
-  const GridData<Ray>& rays_in, bool reflection, Sampler* sampler) const {
-GridData<std::pair<bool, Ray>> result(rays_in.nrows, rays_in.ncols);
+  const GridData<Ray>& rays_in, const bool reflection, Prl2::Sampler* sampler) const {
+GridData<std::pair<bool, Ray>> result(rays_in.nRows, rays_in.nCols);
 
-Parallel parallel;
-parallel.parallel_for_2d(
+Prl2::Parallel parallel;
+parallel.parallelFor2D(
     [&](unsigned int i, unsigned int j) {
       bool traced;
       Ray ray_out;
@@ -474,13 +473,13 @@ parallel.parallel_for_2d(
 
       result.set(i, j, {traced, ray_out});
     },
-    16, 16, rays_in.nrows, rays_in.ncols);
+    16, 16, rays_in.nRows, rays_in.nCols);
 
 return result;
 }
 
 std::pair<GridData<double>, std::array<double, 4>> LensSystem::compute_exit_pupil(
-  const Vector2D& p_film, unsigned int n_grids) const {
+  const Vector2D& p_film, const unsigned int n_grids) const {
 const auto& last_element = elements.back();
 
 // Compute extents
@@ -506,9 +505,9 @@ for (unsigned int i = 0; i < n_grids; ++i) {
 const auto result = raytrace_n(rays_in);
 
 // Represent exit pupil as 0, 1
-GridData<double> exit_pupil(result.nrows, result.ncols);
-for (unsigned int i = 0; i < result.nrows; ++i) {
-  for (unsigned int j = 0; j < result.ncols; ++j) {
+GridData<double> exit_pupil(result.nRows, result.nCols);
+for (unsigned int i = 0; i < result.nRows; ++i) {
+  for (unsigned int j = 0; j < result.nCols; ++j) {
     exit_pupil.set(i, j, result.get(i, j).first);
   }
 }
@@ -555,7 +554,7 @@ return true;
 }
 
 std::vector<Vector3D> LensSystem::compute_spot_diagram(const Vector3D& origin,
-                                                     unsigned int n_grids) const {
+                                                     const unsigned int n_grids) const {
 std::vector<Vector3D> result;
 
 // Compute grids
@@ -577,8 +576,8 @@ for (unsigned int i = 0; i < n_grids; ++i) {
   for (unsigned int j = 0; j < n_grids; ++j) {
     if (raytrace_result.get(i, j).first) {
       const Ray& ray = raytrace_result.get(i, j).second;
-      const double t = -(ray.origin.z - image_focal_z) / ray.direction.z;
-      const Vector3D p_film = ray.at(t);
+      const double t = -(ray.o.z - image_focal_z) / ray.d.z;
+      const Vector3D p_film = ray.at_time(t);
       result.push_back(p_film);
     }
   }
@@ -609,8 +608,8 @@ for (unsigned int i = 0; i < n_rays; ++i) {
   for (unsigned int j = 0; j < n_rays; ++j) {
     if (raytrace_result.get(i, j).first) {
       const Ray& ray = raytrace_result.get(i, j).second;
-      const double t = -(ray.origin.z - image_focal_z) / ray.direction.z;
-      const Vector3D p_film = ray.at(t);
+      const double t = -(ray.o.z - image_focal_z) / ray.d.z;
+      const Vector3D p_film = ray.at_time(t);
       points.push_back(p_film);
     }
   }
@@ -632,8 +631,8 @@ if (!raytrace(primary_ray, primary_ray_out)) {
 
 // Compute intersect position at Gaussian plane
 const Vector3D p_film_primary =
-    primary_ray_out.at(-(primary_ray_out.origin.z - image_focal_z) /
-                       primary_ray_out.direction.z);
+    primary_ray_out.at_time(-(primary_ray_out.o.z - image_focal_z) /
+                       primary_ray_out.d.z);
 
 // Compute mean and variance
 const Vector3D p_mean =

@@ -19,9 +19,9 @@ namespace CGL {
 
 struct Ray {
   size_t depth;  ///< depth of the Ray
-
   Vector3D o;  ///< origin
   Vector3D d;  ///< direction
+    double lambda;
   mutable double min_t; ///< treat the ray as a segment (ray "begin" at min_t)
   mutable double max_t; ///< treat the ray as a segment (ray "ends" at max_t)
 
@@ -37,7 +37,7 @@ struct Ray {
    * \param depth depth of the ray
    */
     Ray(const Vector3D o, const Vector3D d, int depth = 0)
-        : o(o), d(d), min_t(0.0), max_t(INF_D), depth(depth) {
+        : o(o), d(d), min_t(0.0), max_t(INF_D), depth(depth), lambda(0) {
     inv_d = 1.0 / d;
   }
 
@@ -50,7 +50,7 @@ struct Ray {
    * \param depth depth of the ray
    */
     Ray(const Vector3D o, const Vector3D d, double max_t, int depth = 0)
-        : o(o), d(d), min_t(0.0), max_t(max_t), depth(depth) {
+        : o(o), d(d), min_t(0.0), max_t(max_t), depth(depth), lambda(0) {
     inv_d = 1.0 / d;
   }
 

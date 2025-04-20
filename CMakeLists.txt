@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.8)
 project(Assignment3)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# 设置C++17标准
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 #-------------------------------------------------------------------------------
 # Build options
 #-------------------------------------------------------------------------------
@@ -84,6 +89,9 @@ set(APPLICATION_3_2_SOURCE
     src/imgui/imgui_tables.cpp
     src/imgui/backends/imgui_impl_glfw.cpp
     src/imgui/backends/imgui_impl_opengl2.cpp
+        src/pathtracer/camera_lensSys.h
+        src/pathtracer/camera_lensSys.cpp
+        src/lens-system/spectral-ray.h
 )
 
 set(APPLICATION_HEADERS

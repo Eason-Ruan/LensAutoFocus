@@ -83,6 +83,7 @@ set(CGL_SOURCE
         include/CGL/spectrum.h
         include/CGL/bound2.h
         src/spectrum.cpp
+        include/CGL/grid_data.h
 )
 
 add_library(CGL STATIC ${CGL_SOURCE})

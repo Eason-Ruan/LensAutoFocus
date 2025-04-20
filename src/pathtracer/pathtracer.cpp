@@ -249,9 +249,8 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
   for (int i = 0; i < num_samples; i ++) {
     const auto samplePoint = origin + gridSampler->get_sample(); 
     const Vector3D sample = est_radiance_global_illumination(
-      camera->generate_ray_with_lens(samplePoint.x / static_cast<double>(sampleBuffer.w),
-                           samplePoint.y / static_cast<double>(sampleBuffer.h), 
-                           *gridSampler));/* lens */
+      camera->generate_ray(samplePoint.x / static_cast<double>(sampleBuffer.w),
+                           samplePoint.y / static_cast<double>(sampleBuffer.h)));/* lens */
     estSample += sample;
     sampled_num ++;
     const float sample_illum = sample.illum();
@@ -268,6 +267,7 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
 }
 
 void PathTracer::autofocus(Vector2D loc) {
+  // TODO Redesign the autofocus function
   Ray r = camera->generate_ray(loc.x / sampleBuffer.w, loc.y / sampleBuffer.h, *gridSampler);
   Intersection isect;
 

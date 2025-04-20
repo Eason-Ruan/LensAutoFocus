@@ -2,16 +2,14 @@
 #define LENS_SYSTEM_H
 
 #include <array>
-#include <tuple>
 #include <vector>
-#include <memory>
 #include <cmath>
 
-#include "core/bounds2.h"
-#include "film.h"
-#include "grid-data.h"
+#include "CGL/bound2.h"
+#include "spectral-ray.h"
+#include "grid_data.h"
 #include "lens-system/lens-element.h"
-
+#include "lens-sampler/sampler.h"
 namespace CGL {
 
 // Reflect a vector
@@ -20,13 +18,13 @@ inline Vector3D reflect(const Vector3D& v, const Vector3D& n) {
 }
 
 // Compute Fresnel coefficient
-inline double fresnel(const Vector3D& wo, const Vector3D& n, double n1, double n2) {
+inline double fresnel(const Vector3D& wo, const Vector3D& n, const double n1, const double n2) {
   const double f0 = std::pow((n1 - n2) / (n1 + n2), 2.0);
   return f0 + (1.0 - f0) * std::pow(1.0 - dot(wo, n), 5.0);
 }
 
 // Compute refracted vector
-inline bool refract(const Vector3D& wi, Vector3D& wt, const Vector3D& n, double ior1, double ior2) {
+inline bool refract(const Vector3D& wi, Vector3D& wt, const Vector3D& n, const double ior1, const double ior2) {
   const double eta = ior1 / ior2;
   const double cos_theta_i = dot(wi, n);
   const double sin2_theta_i = std::max(0.0, 1.0 - cos_theta_i * cos_theta_i);
@@ -48,16 +46,17 @@ struct ParaxialRay {
   double u;  // Angle with the z-axis
   double h;  // Height of the ray
 
-  ParaxialRay() {}
-  ParaxialRay(double _u, double _h) : u(_u), h(_h) {}
+  ParaxialRay() : u(0), h(0) {}
+  ParaxialRay(const double _u, const double _h) : u(_u), h(_h) {}
 };
 
 class LensSystem {
  public:
-  std::shared_ptr<Film> film;
-
   std::vector<LensElement> elements;
   unsigned int aperture_index;
+
+  double width;
+  double height;  // Size of the image sensor
 
   double system_length;  // Length of the lens system
 
@@ -76,7 +75,7 @@ class LensSystem {
   static constexpr unsigned int num_exit_pupil_bounds_samples = 1024;
   std::vector<Bounds2> exit_pupil_bounds;
 
-  LensSystem(const std::string& filename, const std::shared_ptr<Film>& film);
+  LensSystem(const std::string& filename, double _width, double _height);
 
   // Load lens JSON
   bool load_json(const std::string& filename);
@@ -90,13 +89,13 @@ class LensSystem {
 
   // Raytrace
   bool raytrace(const Ray& ray_in, Ray& ray_out, bool reflection = false,
-                Sampler* sampler = nullptr) const;
+                Prl2::Sampler* sampler = nullptr) const;
   // Raytrace and return raytraced path
   std::vector<Ray> raytrace_path(const Ray& ray_in) const;
   // Raytrace many rays
   GridData<std::pair<bool, Ray>> raytrace_n(const GridData<Ray>& rays_in,
                                             bool reflection = false,
-                                            Sampler* sampler = nullptr) const;
+                                            Prl2::Sampler* sampler = nullptr) const;
 
   // Paraxial raytrace
   std::vector<ParaxialRay> raytrace_paraxial(const ParaxialRay& ray_in,
@@ -132,7 +131,7 @@ class LensSystem {
                            unsigned int n_grids = 512) const;
 
   // Sample ray going from the image sensor to object space
-  bool sample_ray(double u, double v, double lambda, Sampler& sampler, Ray& ray_out,
+  bool sample_ray(double u, double v, double lambda, Prl2::Sampler& sampler, Ray& ray_out,
                   double& pdf, bool reflection = false) const;
 };
 
