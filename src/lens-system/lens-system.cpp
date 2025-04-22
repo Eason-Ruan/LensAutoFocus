@@ -71,9 +71,20 @@ bool LensSystem::load_json(const std::string& filename) {
     // Optional
     bool is_stop = value.value("is_stop", false);
 
-    std::optional<double> nd = value.contains("nd") ? value["nd"].get<double>() : std::nullopt;
-    std::optional<double> nD = value.contains("nD") ? value["nD"].get<double>() : std::nullopt;
-    std::optional<double> nF = value.contains("nF") ? value["nF"].get<double>() : std::nullopt;
+    std::optional<double> nd;
+    if (value.contains("nd")) {
+      nd = value["nd"].get<double>();
+    }
+    
+    std::optional<double> nD;
+    if (value.contains("nD")) {
+      nD = value["nD"].get<double>();
+    }
+    
+    std::optional<double> nF;
+    if (value.contains("nF")) {
+      nF = value["nF"].get<double>();
+    }
 
     // Select IOR equation
     std::shared_ptr<IOREquation> ior_equation;
@@ -425,12 +436,65 @@ bool LensSystem::compute_exit_pupil_bounds() {
 bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampler& sampler,
                             Ray& ray_out, double& pdf, const bool reflection) const {
   // Compute position on film
+  u = 2.0 * u - 1.0; //convert
+  v = 2.0 * v - 1.0; //convert
   const Vector2D p = {0.5f * width * u, 0.5f * height * v};
 
   // Choose exit pupil bound
   const double r = p.norm();
-  const unsigned int exit_pupil_bounds_index =
-      r / (0.5 * sqrt(width * width + height * height)) * num_exit_pupil_bounds;
+  
+  // 添加防御性检查，防止数组访问越界
+  if (exit_pupil_bounds.empty()) {
+    // 如果exit_pupil_bounds为空，使用默认bounds
+    fprintf(stderr, "[LensSystem] Warning: exit_pupil_bounds is empty, using default bounds.\n");
+    Bounds2 default_bound;
+    // 假定最后一个元素是光圈
+    if (!elements.empty()) {
+      const auto& last_element = elements.back();
+      default_bound = Bounds2(
+          Vector2D(-last_element.aperture_radius, -last_element.aperture_radius),
+          Vector2D(last_element.aperture_radius, last_element.aperture_radius));
+    } else {
+      fprintf(stderr, "[LensSystem] Error: elements is empty!\n");
+      return false;
+    }
+    
+    // 使用默认bounds
+    double pdf_area = 1.0 / default_bound.area();
+    Vector2D p_bound = default_bound.p0 + Vector2D(
+        sampler.getNext() * (default_bound.p1.x - default_bound.p0.x),
+        sampler.getNext() * (default_bound.p1.y - default_bound.p0.y));
+    
+    // 跳过旋转
+    
+    // Make input ray
+    const Vector3D origin = Vector3D(p.x, p.y, 0);
+    const Vector3D p_bound_3d = Vector3D(p_bound.x, p_bound.y, elements.back().z);
+    const Vector3D direction = (p_bound_3d - origin).unit();
+    const Ray ray_in(origin, direction, lambda);
+    
+    // Convert area pdf to solid angle pdf
+    const double l = (p_bound_3d - origin).norm();
+    pdf = l * l / std::abs(dot(direction, Vector3D(0, 0, -1))) * pdf_area;
+    
+    // Raytrace
+    if (!raytrace(ray_in, ray_out, reflection, &sampler)) return false;
+    
+    return true;
+  }
+  
+  unsigned int exit_pupil_bounds_index =
+      static_cast<unsigned int>(std::min(
+          r / (0.5 * sqrt(width * width + height * height)) * num_exit_pupil_bounds,
+          static_cast<double>(num_exit_pupil_bounds - 1)));
+  
+  // 添加额外的边界检查
+  if (exit_pupil_bounds_index >= exit_pupil_bounds.size()) {
+    fprintf(stderr, "[LensSystem] Error: exit_pupil_bounds_index (%u) out of bounds (%zu)!\n", 
+            exit_pupil_bounds_index, exit_pupil_bounds.size());
+    return false;
+  }
+  
   const Bounds2& exit_pupil_bound = exit_pupil_bounds[exit_pupil_bounds_index];
   if (!exit_pupil_bound.isValid()) return false;
 
@@ -442,6 +506,12 @@ bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampl
   if (r > 0) {
     const double theta = std::atan2(v, u);
     p_bound = rotate_2d(p_bound, theta);
+  }
+
+  // 添加检查确保elements不为空
+  if (elements.empty()) {
+    fprintf(stderr, "[LensSystem] Error: elements is empty!\n");
+    return false;
   }
 
   // Make input ray
@@ -496,7 +566,7 @@ const GridData<Vector3D> grids = elements.back().sample_points(n_grids);
 GridData<Ray> rays_in(n_grids, n_grids);
 for (unsigned int i = 0; i < n_grids; ++i) {
   for (unsigned int j = 0; j < n_grids; ++j) {
-    const Vector3D p_film_3d = Vector3D(p_film.x, p_film.y, 0);
+    const auto p_film_3d = Vector3D(p_film.x, p_film.y, 0);
     rays_in.set(i, j, Ray(p_film_3d, (grids.get(i, j) - p_film_3d).unit()));
   }
 }

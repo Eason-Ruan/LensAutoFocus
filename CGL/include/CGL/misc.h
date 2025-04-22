@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <string>
 
+#include "type.h"
+
 namespace CGL {
 
 #define PI (3.14159265358979323)
@@ -43,7 +45,13 @@ namespace CGL {
 #define MOD_CTRL    0x0002
 #define MOD_ALT     0x0004
 #define MOD_SUPER   0x0008
+static constexpr Real PI_MUL_2 = PI * 2;
+static constexpr Real PI_MUL_4 = PI * 4;
+static constexpr Real PI_DIV_2 = PI / 2;
 
+static constexpr Real INV_PI = 1 / PI;
+static constexpr Real INV_PI_MUL_2 = 1 / PI_MUL_2;
+static constexpr Real INV_PI_MUL_4 = 1 / PI_MUL_4;
 /*
   Takes any kind of number and converts from degrees to radians.
 */

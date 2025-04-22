@@ -53,7 +53,7 @@ void Camera::configure(const CameraInfo& info, size_t screenW, size_t screenH) {
 void Camera::place(const Vector3D targetPos, const double phi,
                    const double theta, const double r, const double minR,
                    const double maxR) {
-  double r_ = min(max(r, minR), maxR);
+  double r_ = std::min(std::max(r, minR), maxR);
   double phi_ = (sin(phi) == 0) ? (phi + EPS_F) : phi;
   this->targetPos = targetPos;
   this->phi = phi_;
@@ -103,7 +103,7 @@ void Camera::move_by(const double dx, const double dy, const double d) {
  * This function translates the camera position (in forward direction)
  */
 void Camera::move_forward(const double dist) {
-  double newR = min(max(r - dist, minR), maxR);
+  double newR = std::min(std::max(r - dist, minR), maxR);
   pos = targetPos + ((pos - targetPos) * (newR / r));
   r = newR;
 }

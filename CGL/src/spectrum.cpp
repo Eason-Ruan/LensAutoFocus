@@ -162,9 +162,9 @@ SPD RGB2Spectrum(const RGB& rgb) {
           {1, 1, 0.8916, 0.3323, 0, 0, 0.0003, 0.0369, 0.0483, 0.0496});
 
   SPD ret;
-  const Real red = rgb.x();
-  const Real green = rgb.y();
-  const Real blue = rgb.z();
+  const Real red = rgb.x;
+  const Real green = rgb.y;
+  const Real blue = rgb.z;
   if (red <= green && red <= blue) {
     ret += red * white_spectrum;
     if (green <= blue) {

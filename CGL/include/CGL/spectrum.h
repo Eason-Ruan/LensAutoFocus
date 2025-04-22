@@ -24,9 +24,9 @@ using RGB = Vector3D;
 // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 inline RGB XYZ2RGB(const XYZ& xyz) {
   return RGB(
-      3.2404542f * xyz.x() - 1.5371385f * xyz.y() - 0.4985314f * xyz.z(),
-      -0.9692660f * xyz.x() + 1.8760108f * xyz.y() + 0.0415560f * xyz.z(),
-      0.0556434f * xyz.x() - 0.2040259f * xyz.y() + 1.0572252f * xyz.z());
+      3.2404542f * xyz.x - 1.5371385f * xyz.y - 0.4985314f * xyz.z,
+      -0.9692660f * xyz.x + 1.8760108f * xyz.y + 0.0415560f * xyz.z,
+      0.0556434f * xyz.x - 0.2040259f * xyz.y + 1.0572252f * xyz.z);
 }
 
 // Represents a SPD (Spectral Power Distribution) sampled at equal intervals

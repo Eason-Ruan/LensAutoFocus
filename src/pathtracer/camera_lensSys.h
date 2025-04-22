@@ -6,11 +6,22 @@
 #define CAMERA_LENSSYS_H
 
 #include "camera.h"
-
+#include "lens-sampler/random.h"
+#include "lens-system/lens-system.h"
 namespace CGL {
-    class CameraLensSys : public Camera {
-        public:
-        Ray generate_ray(double x, double y) const;
+    class CameraLensSys final : public Camera {
+    public:
+        // TODO: Respecify the len system resolution
+        CameraLensSys(const std::string& lensFile, const double width, const double height) : Camera(), lensSys(nullptr)  {
+            // 设置相机参数，使其与镜头系统匹配
+            lensSys  = new LensSystem(lensFile, 0.0036, 0.0024);
+        }
+        Ray generate_ray(double x, double y) const override;
+        LensSystem* lensSys;
+        Prl2::Sampler* random_sampler;
+        ~CameraLensSys() override {
+            delete lensSys;
+        }
     };
 }
 

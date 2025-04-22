@@ -6,7 +6,7 @@
 
 #include "grid_data.h"
 #include "CGL/vector3D.h"
-#include "ray.h"
+#include "pathtracer/ray.h"
 #include "lens-system/ior.h"
 
 namespace CGL {

@@ -17,6 +17,8 @@ namespace CGL {
  */
 class Camera {
  public:
+  virtual ~Camera() = default;
+
   /*
     Sets the field of view to match screen screenW/H.
     NOTE: data and screenW/H will almost certainly disagree about the aspect
@@ -86,7 +88,7 @@ class Camera {
    * \param x x-coordinate of the ray sample in the view plane
    * \param y y-coordinate of the ray sample in the view plane
    */
-  Ray generate_ray(double x, double y) const;
+  virtual Ray generate_ray(double x, double y) const;
 
   Ray generate_ray_for_thin_lens(double x, double y, double rndR, double rndTheta) const;
 

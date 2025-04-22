@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
+#include "camera_lensSys.h"
 #include "CGL/CGL.h"
 #include "CGL/vector3D.h"
 #include "CGL/matrix3x3.h"
@@ -275,20 +276,95 @@ void RaytracedRenderer::start_raytracing() {
   continueRaytracing = true;
   workerDoneCount = 0;
 
-  size_t width = frameBuffer.w;
-  size_t height = frameBuffer.h;
+  const size_t width = frameBuffer.w;
+  const size_t height = frameBuffer.h;
 
   pt->clear();
   pt->set_frame_size(width, height);
 
   pt->bvh = bvh;
-  pt->camera = camera;
   pt->scene = scene;
 
   /* lens */
-  pt->lensSystem = std::make_shared<lensSystem>("./data/dgauss50mm.json", film);
-  pt->lensSystem->focus(-0.2);
-  pt->lensSystem->computeExitPupilBounds();
+  pt->spectrumSampling = true;
+  
+  fprintf(stdout, "[PathTracer] Initializing lens system...\n"); fflush(stdout);
+  bool use_lens_system = true;
+  try {
+    cameraLens = new CameraLensSys("./data/dgauss50mm.json", static_cast<double>(width), static_cast<double>(height));
+    if (!cameraLens || !cameraLens->lensSys) {
+      fprintf(stderr, "[PathTracer] Error: Failed to initialize lens system!\n");
+      use_lens_system = false;
+    }
+    
+    if (use_lens_system) {
+      fprintf(stdout, "[PathTracer] Creating random sampler...\n"); fflush(stdout);
+      sampler = new Prl2::RandomSampler;
+      if (!sampler) {
+        fprintf(stderr, "[PathTracer] Error: Failed to create sampler!\n");
+        use_lens_system = false;
+      }
+    }
+    
+    if (use_lens_system) {
+      fprintf(stdout, "[PathTracer] Setting up camera placement...\n"); fflush(stdout);
+      cameraLens->copy_placement(*camera);
+      
+      fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
+      // 设置为新的相机
+      cameraLens->lensSys->focus(0.2);
+      
+      fprintf(stdout, "[PathTracer] Computing cardinal points...\n"); fflush(stdout);
+      cameraLens->lensSys->compute_cardinal_points();
+      
+      // 初始化exit_pupil_bounds，避免在渲染过程中出现段错误
+      fprintf(stdout, "[PathTracer] Computing exit pupil bounds...\n"); fflush(stdout);
+      // 创建一些默认值填充exit_pupil_bounds以避免它为空
+      cameraLens->lensSys->compute_exit_pupil_bounds();
+      fprintf(stdout, "[PathTracer] Assigning sampler to camera...\n"); fflush(stdout);
+      cameraLens->random_sampler = sampler;
+      pt->camera = cameraLens;
+      fprintf(stdout, "[PathTracer] Lens system initialization complete.\n"); fflush(stdout);
+    } else {
+      if (cameraLens) {
+        delete cameraLens;
+        cameraLens = nullptr;
+      }
+      if (sampler) {
+        delete sampler;
+        sampler = nullptr;
+      }
+      pt->spectrumSampling = false;
+      pt->camera = camera;
+      fprintf(stdout, "[PathTracer] Using standard camera instead of lens system.\n"); fflush(stdout);
+    }
+  } catch (const std::exception& e) {
+    fprintf(stderr, "[PathTracer] Error during lens setup: %s\n", e.what());
+    if (cameraLens) {
+      delete cameraLens;
+      cameraLens = nullptr;
+    }
+    if (sampler) {
+      delete sampler;
+      sampler = nullptr;
+    }
+    pt->spectrumSampling = false;
+    pt->camera = camera;
+    fprintf(stdout, "[PathTracer] Using standard camera instead of lens system.\n"); fflush(stdout);
+  } catch (...) {
+    fprintf(stderr, "[PathTracer] Unknown error during lens setup!\n");
+    if (cameraLens) {
+      delete cameraLens;
+      cameraLens = nullptr;
+    }
+    if (sampler) {
+      delete sampler;
+      sampler = nullptr;
+    }
+    pt->spectrumSampling = false;
+    pt->camera = camera;
+    fprintf(stdout, "[PathTracer] Using standard camera instead of lens system.\n"); fflush(stdout);
+  }
 
   if (!render_cell) {
     frameBuffer.clear();
@@ -320,7 +396,8 @@ void RaytracedRenderer::start_raytracing() {
     for (size_t y = cell_tl.y; y < cell_br.y; y += imTS) {
       for (size_t x = cell_tl.x; x < cell_br.x; x += imTS) {
         workQueue.put_work(WorkItem(x, y, 
-          min(imTS, (int)(cell_br.x-x)), min(imTS, (int)(cell_br.y-y)) ));
+          std::min(imTS, static_cast<int>(cell_br.x-x)), 
+          std::min(imTS, static_cast<int>(cell_br.y-y))));
       }
     }
   }

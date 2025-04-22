@@ -92,6 +92,14 @@ set(APPLICATION_3_2_SOURCE
         src/pathtracer/camera_lensSys.h
         src/pathtracer/camera_lensSys.cpp
         src/lens-system/spectral-ray.h
+        src/lens-system/lens-system.cpp
+        src/lens-system/lens-system.h
+        src/lens-system/lens-element.h
+        src/lens-system/ior.h
+        src/lens-sampler/rng.cpp
+        src/lens-sampler/rng.h
+        src/lens-parallel/parallel.h
+        src/lens-parallel/parallel.cpp
 )
 
 set(APPLICATION_HEADERS

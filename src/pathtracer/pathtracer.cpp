@@ -1,14 +1,18 @@
 #include "pathtracer.h"
 
+#include "type.h"
+#include "CGL/spectrum.h"
 #include "scene/light.h"
 #include "scene/sphere.h"
-#include "scene/triangle.h"
+#include "misc.h"
 
 
 using namespace CGL::SceneObjects;
 
 namespace CGL {
-
+  Real getSpectrum(const Vector3D& radiance,const Ray& ray) {
+    return RGB2Spectrum(radiance).sample(ray.lambda);
+  }
 PathTracer::PathTracer() {
   gridSampler = new UniformGridSampler2D();
   hemisphereSampler = new UniformHemisphereSampler3D();
@@ -236,7 +240,6 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
   // Make a loop that generates num_samples camera rays and traces them
   // through the scene. Return the average Vector3D.
   // You should call est_radiance_global_illumination in this function.
-
   // TODO (Part 5):
   // Modify your implementation to include adaptive sampling.
   // Use the command line parameters "samplesPerBatch" and "maxTolerance"
@@ -247,10 +250,25 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
   float s2 = 0.0;
   int sampled_num = 0;
   for (int i = 0; i < num_samples; i ++) {
-    const auto samplePoint = origin + gridSampler->get_sample(); 
-    const Vector3D sample = est_radiance_global_illumination(
-      camera->generate_ray(samplePoint.x / static_cast<double>(sampleBuffer.w),
-                           samplePoint.y / static_cast<double>(sampleBuffer.h)));/* lens */
+    const auto samplePoint = origin + gridSampler->get_sample();
+    Ray ray_out = camera->generate_ray(samplePoint.x / static_cast<double>(sampleBuffer.w),
+                           samplePoint.y / static_cast<double>(sampleBuffer.h));
+    if (spectrumSampling && ray_out.d == Vector3D(0, 0, 0)) {
+      continue;
+    }
+    Vector3D sample = est_radiance_global_illumination(ray_out);
+    if (spectrumSampling) {
+      const Real cos  = std::abs(dot(ray_out.d, Vector3D(0, 0, -1)));
+      const Real radiance = getSpectrum(sample, ray_out) * cos / (ray_out.ray_pdf * ray_out.lambda_pdf);
+      const int index = static_cast<int>((ray_out.lambda - 380) / 5);
+      Vector3D XYZ;
+      if (index >= 0 && index <= SPD::color_matching_func_samples - 1) {
+        XYZ[0] = radiance * SPD::color_matching_func_x[index];
+        XYZ[1] = radiance * SPD::color_matching_func_y[index];
+        XYZ[2] = radiance * SPD::color_matching_func_z[index];
+      }
+      sample = XYZ;
+    }
     estSample += sample;
     sampled_num ++;
     const float sample_illum = sample.illum();
@@ -262,18 +280,16 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
       }
     }
   }
+  if (spectrumSampling) {
+    estSample = XYZ2RGB(estSample);
+  }
   sampleBuffer.update_pixel(estSample / sampled_num, x, y);
   sampleCountBuffer[x + y * sampleBuffer.w] = sampled_num;
 }
 
+
 void PathTracer::autofocus(Vector2D loc) {
   // TODO Redesign the autofocus function
-  Ray r = camera->generate_ray(loc.x / sampleBuffer.w, loc.y / sampleBuffer.h, *gridSampler);
-  Intersection isect;
-
-  bvh->intersect(r, &isect);
-
-  camera->focalDistance = isect.t;
 }
 
 } // namespace CGL

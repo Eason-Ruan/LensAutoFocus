@@ -558,10 +558,10 @@ void Application::mouse_released(e_mouse_button b) {
     case LEFT:
       leftDown = false;
       if (mode == RENDER_MODE && renderer->render_cell) {
-        Vector2D tl(max(0.,min(renderer->cell_tl.x,renderer->cell_br.x)),
-                    max(0.,min(renderer->cell_tl.y,renderer->cell_br.y)));
-        Vector2D br(min(screenW*1.,max(renderer->cell_tl.x,renderer->cell_br.x)),
-                    min(screenH*1.,max(renderer->cell_tl.y,renderer->cell_br.y)));
+        Vector2D tl(std::max(0.0, std::min((double)renderer->cell_tl.x, (double)renderer->cell_br.x)),
+                    std::max(0.0, std::min((double)renderer->cell_tl.y, (double)renderer->cell_br.y)));
+        Vector2D br(std::min((double)screenW, std::max((double)renderer->cell_tl.x, (double)renderer->cell_br.x)),
+                    std::min((double)screenH, std::max((double)renderer->cell_tl.y, (double)renderer->cell_br.y)));
         renderer->cell_tl = tl;
         renderer->cell_br = br;
         cout << "[renderer] Selected cell measures " << (int)(br.x-tl.x) << "x" << (int)(br.y-tl.y) << " pixels" << endl;

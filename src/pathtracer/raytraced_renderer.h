@@ -9,6 +9,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "camera_lensSys.h"
 #include "CGL/timer.h"
 
 #include "scene/bvh.h"
@@ -17,6 +18,7 @@
 #include "util/image.h"
 #include "util/work_queue.h"
 #include "pathtracer/intersection.h"
+#include "lens-sampler/random.h"
 
 #include "application/renderer.h"
 
@@ -206,7 +208,8 @@ public:
   State state;          ///< current state
   Scene* scene;         ///< current scene
   Camera* camera;       ///< current camera
-
+  CameraLensSys* cameraLens;
+  Prl2::Sampler* sampler;
   // Integration state //
 
   vector<int> tile_samples; ///< current sample rate for tile

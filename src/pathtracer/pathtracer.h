@@ -8,6 +8,7 @@
 #include "pathtracer/intersection.h"
 
 #include "application/renderer.h"
+#include "lens-sampler/sampler.h"
 
 #include "scene/scene.h"
 using CGL::SceneObjects::Scene;
@@ -18,9 +19,6 @@ using CGL::SceneObjects::EnvironmentLight;
 using CGL::SceneObjects::BVHNode;
 using CGL::SceneObjects::BVHAccel;
 
-/* lens */
-#include "lens-system/lens-system.h"
-LensSystem* lensSystem = nullptr;
 
 namespace CGL {
 
@@ -100,14 +98,16 @@ namespace CGL {
         Scene* scene;         ///< current scene
         Camera* camera;       ///< current camera
 
-        std::shared_prt<lensSystem> lensSystem; ///< lens system
-
         // Tonemapping Controls //
 
         double tm_gamma;                           ///< gamma
         double tm_level;                           ///< exposure level
         double tm_key;                             ///< key value
         double tm_wht;                             ///< white point
+
+        // spectrum sampling control
+        bool spectrumSampling = false;
+        Prl2::Sampler* randomSampler = nullptr;
     };
 
 }  // namespace CGL

@@ -16,7 +16,7 @@ class Sampler {
   virtual void setSeed(uint64_t seed) = 0;
 
   // Get a random number for the next dimension
-  virtual Real getNext() = 0;
+  virtual CGL::Real getNext() = 0;
 
   // Get two random numbers for the next dimension
   virtual CGL::Vector2D getNext2D() = 0;

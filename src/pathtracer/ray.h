@@ -22,6 +22,8 @@ struct Ray {
   Vector3D o;  ///< origin
   Vector3D d;  ///< direction
     double lambda;
+    double lambda_pdf;
+    double ray_pdf;
   mutable double min_t; ///< treat the ray as a segment (ray "begin" at min_t)
   mutable double max_t; ///< treat the ray as a segment (ray "ends" at max_t)
 

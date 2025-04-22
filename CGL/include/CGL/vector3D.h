@@ -94,6 +94,14 @@ public:
     return v.x == x && v.y == y && v.z == z;
   }
 
+  // 添加小于运算符，使Vector3D可以用于std::min和std::max函数
+  inline bool operator<( const Vector3D& v) const {
+    // 基于元素的字典序比较，先比较x，然后是y，最后是z
+    if (x != v.x) return x < v.x;
+    if (y != v.y) return y < v.y;
+    return z < v.z;
+  }
+
   // negation
   inline Vector3D operator-( void ) const {
     return Vector3D( -x, -y, -z );
@@ -268,9 +276,26 @@ inline Vector3D cross( const Vector3D& u, const Vector3D& v ) {
                    u.x*v.y - u.y*v.x );
 }
 
+
 // prints components
 std::ostream& operator<<( std::ostream& os, const Vector3D& v );
-
+  inline Vector3D min(const Vector3D& v1, const Vector3D& v2) {
+    return {v1.x < v2.x ? v1.x : v2.x,
+                v1.y < v2.y ? v1.y : v2.y,
+                v1.z < v2.z ? v1.z : v2.z};
+  }
+  inline Vector3D max(const Vector3D& v1, const Vector3D& v2) {
+    return {v1.x > v2.x ? v1.x : v2.x,
+                v1.y > v2.y ? v1.y : v2.y,
+                v1.z > v2.z ? v1.z : v2.z};
+  }
+  inline Vector3D clamp(const Vector3D& v, const Vector3D& vmin, const Vector3D& vmax) {
+    Vector3D ret;
+    ret[0] = std::clamp(v.x, vmin.x, vmax.x);
+    ret[1] = std::clamp(v.y, vmin.y, vmax.y);
+    ret[2] = std::clamp(v.z, vmin.z, vmax.z);
+    return ret;
+  }
 } // namespace CGL
 
 #endif // CGL_VECTOR3D_H

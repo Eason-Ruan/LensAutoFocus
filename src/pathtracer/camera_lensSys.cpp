@@ -8,19 +8,28 @@
 
 namespace CGL {
     Ray CameraLensSys::generate_ray(double x, double y) const {
-        double u = (2.0 * (samplePoint.x + sampler->getNext()) - samplerBuffer.w) / (double) sampleBuffer.w;
-        double v = (2.0 * (samplePoint.y + sampler->getNext()) - samplerBuffer.h) / (double) sampleBuffer.h;
-
-        //采样波长
-        double lambda_pdf = 1.0 / (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN);
-        double lambda = SPD::LAMBDA_MIN + (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN) * sampler->getNext();
-
+        const Real lambda_pdf = 1.0f / (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN);
+        // 确保生成的波长在有效范围内，避免溢出
+        Real lambda = random_sampler->getNext() * (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN - 0.001) + SPD::LAMBDA_MIN;
+        
+        // 添加额外边界检查，确保波长在 LAMBDA_MIN 到 LAMBDA_MAX 之间
+        if (lambda >= SPD::LAMBDA_MAX) {
+            lambda = SPD::LAMBDA_MAX - 0.001;
+        }
+        if (lambda < SPD::LAMBDA_MIN) {
+            lambda = SPD::LAMBDA_MIN;
+        }
+        
         //采样光线
         Ray ray_out;
-        double ray_pdf;
-        if (!lensSystem->sampleRay(u, v, lambda, *sampler, ray, ray_pdf, false)) {
-            continue; // 采样失败跳过
+        Real ray_pdf;
+        if (!lensSys->sample_ray(x, y, lambda, *random_sampler, ray_out, ray_pdf, false)) {
+            ray_out.d = Vector3D(0, 0, 0);
+            return ray_out;
         }
+        ray_out.lambda = lambda;
+        ray_out.ray_pdf = ray_pdf;
+        ray_out.lambda_pdf = lambda_pdf;
         return ray_out;
     }
 

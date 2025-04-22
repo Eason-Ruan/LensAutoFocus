@@ -12,7 +12,7 @@ class Parallel {
   Parallel();
 
   // Execute a for loop in parallel
-  // job: The function to be parallelized
+  // job: The functi。on to be parallelized
   // nChunks: Number of loop divisions
   // n: Number of iterations
   void parallelFor1D(const std::function<void(unsigned int)>& job,
