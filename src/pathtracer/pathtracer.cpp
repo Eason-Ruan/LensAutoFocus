@@ -254,9 +254,6 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y) {
     const auto samplePoint = origin + gridSampler->get_sample();
     Ray ray_out = camera->generate_ray(samplePoint.x / static_cast<double>(sampleBuffer.w),
                            samplePoint.y / static_cast<double>(sampleBuffer.h));
-    ray_out.o /= 100.0;
-    ray_out.o.z *= -1.0;
-    ray_out.d.z *= -1.0;
     if (spectrumSampling && ray_out.d == Vector3D(0, 0, 0)) {
       // std::cout << "Ray failed to pass lens, with"<< ray_out.o << std::endl;
       continue;

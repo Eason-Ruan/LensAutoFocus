@@ -33,6 +33,9 @@ namespace CGL {
         if (ray_out.d == Vector3D(0, 0, 0)) {
             std::cerr << "Error sampling ray" << std::endl;
         }
+        ray_out.o /= 1000.0;
+        ray_out.o =  c2w * ray_out.o + pos;
+        ray_out.d = c2w * ray_out.d;
         ray_out.lambda = lambda;
         ray_out.ray_pdf = ray_pdf;
         ray_out.lambda_pdf = lambda_pdf;
