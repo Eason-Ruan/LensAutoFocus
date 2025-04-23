@@ -4,7 +4,7 @@
 #include <cmath>
 #include <memory>
 
-#include "grid_data.h"
+#include "CGL/grid_data.h"
 #include "CGL/vector3D.h"
 #include "pathtracer/ray.h"
 #include "lens-system/ior.h"
@@ -46,35 +46,30 @@ class LensElement {
   bool intersect(const Ray& ray, Hit& res) const {
     // If the element is an aperture or the curvature radius is too large, treat it as a plane
     if (is_stop || curvature_radius > 10000) {
-      double t = -(ray.o.z - z) / ray.d.z;
-      const Vector3D hit_pos = ray.at_time(t);
-      const double r = hit_pos.x * hit_pos.x + hit_pos.y * hit_pos.y;
-      if (r > aperture_radius * aperture_radius) return false;
+      const double t = -(ray.o.z - z) / ray.d.z;
+      if (const Vector3D hit_pos = ray.at_time(t); hit_pos.x * hit_pos.x + hit_pos.y * hit_pos.y> aperture_radius * aperture_radius) return false;
 
       res.t = t;
       res.hitPos = ray.at_time(t);
       res.hitNormal = align_normal(ray.d, Vector3D(0, 0, -1));
       return true;
-    } else {
-      const Vector3D center(0, 0, z + curvature_radius);
-      const double b = dot(ray.o - center, ray.d);
-      const double c = (ray.o - center).norm2() - curvature_radius * curvature_radius;
-      const double discriminant = b * b - c;
-      if (discriminant < 0) return false;
-
-      const double t0 = -b - std::sqrt(discriminant);
-      const double t1 = -b + std::sqrt(discriminant);
-      const double t = curvature_radius * ray.d.z > 0 ? t0 : t1;
-      const Vector3D hit_pos = ray.at_time(t);
-
-      const double r = hit_pos.x * hit_pos.x + hit_pos.y * hit_pos.y;
-      if (r > aperture_radius * aperture_radius) return false;
-
-      res.t = t;
-      res.hitPos = hit_pos;
-      res.hitNormal = align_normal(ray.d, (hit_pos - center).unit());
-      return true;
     }
+    const Vector3D center(0, 0, z + curvature_radius);
+    const double b = dot(ray.o - center, ray.d);
+    const double c = (ray.o - center).norm2() - curvature_radius * curvature_radius;
+    const double discriminant = b * b - c;
+    if (discriminant < 0) return false;
+
+    const double t0 = -b - std::sqrt(discriminant);
+    const double t1 = -b + std::sqrt(discriminant);
+    const double t = curvature_radius * ray.d.z > 0 ? t0 : t1;
+    const Vector3D hit_pos = ray.at_time(t);
+    if (hit_pos.x * hit_pos.x + hit_pos.y * hit_pos.y > aperture_radius * aperture_radius) return false;
+
+    res.t = t;
+    res.hitPos = hit_pos;
+    res.hitNormal = align_normal(ray.d, (hit_pos - center).unit());
+    return true;
   }
 
   double ior(const double lambda) const { return ior_equation->ior(lambda); }

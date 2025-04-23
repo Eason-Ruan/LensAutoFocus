@@ -106,7 +106,7 @@ namespace CGL {
         double tm_wht;                             ///< white point
 
         // spectrum sampling control
-        bool spectrumSampling = false;
+        bool spectrumSampling = true;
         Prl2::Sampler* randomSampler = nullptr;
     };
 

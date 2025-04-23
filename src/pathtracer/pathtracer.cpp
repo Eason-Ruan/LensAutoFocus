@@ -235,7 +235,7 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   return L_out;
 }
 
-void PathTracer::raytrace_pixel(size_t x, size_t y) {
+void PathTracer::raytrace_pixel(const size_t x, const size_t y) {
   // TODO (Part 1.2):
   // Make a loop that generates num_samples camera rays and traces them
   // through the scene. Return the average Vector3D.
@@ -243,8 +243,9 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
   // TODO (Part 5):
   // Modify your implementation to include adaptive sampling.
   // Use the command line parameters "samplesPerBatch" and "maxTolerance"
-  const int num_samples = ns_aa;          // total samples to evaluate
-  const auto origin = Vector2D(x, y); // bottom left corner of the pixel
+  spectrumSampling = true;
+  const int num_samples = static_cast<int>(ns_aa);          // total samples to evaluate
+  const auto origin = Vector2D(static_cast<int>(x), static_cast<int>(y)); // bottom left corner of the pixel
   auto estSample = Vector3D(0.0, 0.0, 0.0);
   float s1 = 0.0;
   float s2 = 0.0;
@@ -253,8 +254,14 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
     const auto samplePoint = origin + gridSampler->get_sample();
     Ray ray_out = camera->generate_ray(samplePoint.x / static_cast<double>(sampleBuffer.w),
                            samplePoint.y / static_cast<double>(sampleBuffer.h));
+    ray_out.o /= 100.0;
+    ray_out.o.z *= -1.0;
+    ray_out.d.z *= -1.0;
     if (spectrumSampling && ray_out.d == Vector3D(0, 0, 0)) {
+      // std::cout << "Ray failed to pass lens, with"<< ray_out.o << std::endl;
       continue;
+    }else if (spectrumSampling) {
+      // std::cout << "ray_out, o: " << ray_out.o << ", d: "<< ray_out.d << std::endl;
     }
     Vector3D sample = est_radiance_global_illumination(ray_out);
     if (spectrumSampling) {
@@ -281,9 +288,12 @@ void PathTracer::raytrace_pixel(size_t x, size_t y) {
     }
   }
   if (spectrumSampling) {
+    estSample /= sampled_num;
     estSample = XYZ2RGB(estSample);
+  } else {
+    estSample /= sampled_num;
   }
-  sampleBuffer.update_pixel(estSample / sampled_num, x, y);
+  sampleBuffer.update_pixel(estSample, x, y);
   sampleCountBuffer[x + y * sampleBuffer.w] = sampled_num;
 }
 

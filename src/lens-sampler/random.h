@@ -2,8 +2,8 @@
 #define RANDOM_H
 #include "rng.h"
 #include "sampler.h"
-#include "type.h"
-#include "vector2D.h"
+#include "CGL/type.h"
+#include "CGL/vector2D.h"
 
 namespace Prl2 {
 

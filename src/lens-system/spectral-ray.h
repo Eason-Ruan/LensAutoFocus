@@ -5,7 +5,7 @@
 #ifndef SPECTRAL_RAY_H
 #define SPECTRAL_RAY_H
 
-#include "type.h"
+#include "CGL/type.h"
 #include "pathtracer/ray.h"
 
 namespace CGL {

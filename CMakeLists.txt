@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.5)
 project(Assignment3)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 #-------------------------------------------------------------------------------
 option(BUILD_DEBUG     "Build with debug settings"    OFF)
 option(BUILD_DOCS      "Build documentation"          OFF)
+option(BUILD_TESTS     "Build test cases"             OFF)
 
 
 set(BUILD_DEBUG ${BUILD_DEBUG} CACHE BOOL "Build debug" FORCE)
@@ -201,6 +202,12 @@ if(BUILD_DOCS)
   if(DOXYGEN_FOUND AND BUILD_DOCS)
     add_subdirectory(docs)
   endif()
+endif()
+
+# build tests
+if(BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(test)
 endif()
 
 # Install settings

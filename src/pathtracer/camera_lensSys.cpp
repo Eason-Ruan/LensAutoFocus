@@ -7,8 +7,8 @@
 #include "lens-system/lens-system.h"
 
 namespace CGL {
-    Ray CameraLensSys::generate_ray(double x, double y) const {
-        const Real lambda_pdf = 1.0f / (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN);
+    Ray CameraLensSys::generate_ray(const double x, const double y) const {
+        constexpr Real lambda_pdf = 1.0f / (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN);
         // 确保生成的波长在有效范围内，避免溢出
         Real lambda = random_sampler->getNext() * (SPD::LAMBDA_MAX - SPD::LAMBDA_MIN - 0.001) + SPD::LAMBDA_MIN;
         
@@ -22,10 +22,16 @@ namespace CGL {
         
         //采样光线
         Ray ray_out;
+        ray_out.o = Vector3D(0, 0, 0);
+        ray_out.d = Vector3D(0, 0, 0);
         Real ray_pdf;
-        if (!lensSys->sample_ray(x, y, lambda, *random_sampler, ray_out, ray_pdf, false)) {
+        const bool result = lensSys->sample_ray(x, y, lambda, *random_sampler, ray_out, ray_pdf, false);
+        if (!result) {
             ray_out.d = Vector3D(0, 0, 0);
             return ray_out;
+        }
+        if (ray_out.d == Vector3D(0, 0, 0)) {
+            std::cerr << "Error sampling ray" << std::endl;
         }
         ray_out.lambda = lambda;
         ray_out.ray_pdf = ray_pdf;

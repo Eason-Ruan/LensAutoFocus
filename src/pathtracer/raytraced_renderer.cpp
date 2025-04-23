@@ -312,17 +312,13 @@ void RaytracedRenderer::start_raytracing() {
       
       fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
       // 设置为新的相机
-      cameraLens->lensSys->focus(0.2);
-      
-      fprintf(stdout, "[PathTracer] Computing cardinal points...\n"); fflush(stdout);
-      cameraLens->lensSys->compute_cardinal_points();
-      
-      // 初始化exit_pupil_bounds，避免在渲染过程中出现段错误
+      cameraLens->lensSys->focus(-0.2);
+
       fprintf(stdout, "[PathTracer] Computing exit pupil bounds...\n"); fflush(stdout);
-      // 创建一些默认值填充exit_pupil_bounds以避免它为空
       cameraLens->lensSys->compute_exit_pupil_bounds();
       fprintf(stdout, "[PathTracer] Assigning sampler to camera...\n"); fflush(stdout);
       cameraLens->random_sampler = sampler;
+      pt->spectrumSampling = true;
       pt->camera = cameraLens;
       fprintf(stdout, "[PathTracer] Lens system initialization complete.\n"); fflush(stdout);
     } else {

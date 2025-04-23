@@ -14,7 +14,7 @@ namespace CGL {
         // TODO: Respecify the len system resolution
         CameraLensSys(const std::string& lensFile, const double width, const double height) : Camera(), lensSys(nullptr)  {
             // 设置相机参数，使其与镜头系统匹配
-            lensSys  = new LensSystem(lensFile, 0.0036, 0.0024);
+            lensSys  = new LensSystem(lensFile, 36, 24);
         }
         Ray generate_ray(double x, double y) const override;
         LensSystem* lensSys;

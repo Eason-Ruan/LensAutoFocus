@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "type.h"
+#include "CGL/type.h"
 #include "CGL/misc.h"
 
 #define PCG32_DEFAULT_STATE 0x853c49e6748fea9bULL

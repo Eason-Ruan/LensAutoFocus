@@ -4,8 +4,8 @@
 
 #ifndef BOUND2_H
 #define BOUND2_H
-#include <vector2D.h>
-#include <type.h>
+#include "CGL/vector2D.h"
+#include "CGL/type.h"
 
 #include "util/random_util.h"
 
@@ -25,6 +25,7 @@ namespace CGL {
         bool isValid() const { return p0.x < p1.x && p0.y < p1.y; }
 
         Vector2D samplePoint(Real& pdf) const {
+            pdf = 1.0f / area();
             const double u = random_uniform();
             return p0 + u * (p1 - p0);
         }

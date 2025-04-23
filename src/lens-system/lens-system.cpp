@@ -119,7 +119,7 @@ double LensSystem::back_focal_length() const {
 }
 
 bool LensSystem::raytrace(const Ray& ray_in, Ray& ray_out, bool reflection, Prl2::Sampler* sampler) const {
-  int element_index = ray_in.d.z > 0 ? -1 : elements.size();
+  int element_index = ray_in.d.z > 0 ? -1 : static_cast<int>(elements.size());
   const int initial_element_index = element_index;
 
   Ray ray = ray_in;
@@ -365,11 +365,9 @@ void LensSystem::compute_cardinal_points() {
 }
 
 bool LensSystem::focus(const double focus_z) {
-  const double delta =
-      0.5 * (object_principal_z - focus_z + image_principal_z -
-             std::sqrt((object_principal_z - focus_z - image_principal_z) *
-                       (object_principal_z - focus_z - 4 * image_focal_length -
-                        image_principal_z)));
+  const double image_distance = (focus_z * image_focal_length) / (focus_z - image_focal_length);
+  // 计算需要移动的距离
+  const double delta = image_distance - (image_principal_z - object_principal_z);
 
   // Move lens elements
   for (auto& element : elements) {
@@ -515,8 +513,8 @@ bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampl
   }
 
   // Make input ray
-  const Vector3D origin = Vector3D(p.x, p.y, 0);
-  const Vector3D p_bound_3d = Vector3D(p_bound.x, p_bound.y, elements.back().z);
+  const auto origin = Vector3D(p.x, p.y, 0);
+  const auto p_bound_3d = Vector3D(p_bound.x, p_bound.y, elements.back().z);
   const Vector3D direction = (p_bound_3d - origin).unit();
   const Ray ray_in(origin, direction, lambda);
 

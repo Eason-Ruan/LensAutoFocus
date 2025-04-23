@@ -7,7 +7,7 @@
 
 #include "CGL/bound2.h"
 #include "spectral-ray.h"
-#include "grid_data.h"
+#include "CGL/grid_data.h"
 #include "lens-system/lens-element.h"
 #include "lens-sampler/sampler.h"
 namespace CGL {

@@ -1,6 +1,5 @@
 #include "rng.h"
 
-#include "type.h"
 
 namespace Prl2 {
 
