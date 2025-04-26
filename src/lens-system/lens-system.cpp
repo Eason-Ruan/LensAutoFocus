@@ -496,16 +496,23 @@ bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampl
   const Bounds2& exit_pupil_bound = exit_pupil_bounds[exit_pupil_bounds_index];
   if (!exit_pupil_bound.isValid()) return false;
 
+
+
+
+  0
+
   // Sample point on exit pupil bound
   double pdf_area;
+  auto p_bound_uv = Vector2D(random_uniform(), random_uniform());
+  p_bound_uv = Vector2D(2 * p_bound_uv.x - 1.0, 2 * p_bound_uv.y - 1.0);
   Vector2D p_bound = exit_pupil_bound.samplePoint(pdf_area);
   const Real p_bound_r = p_bound.norm();
   p_bound = Vector2D(p_bound_r, 0);
 
   // Rotate sampled point
   if (r > 0) {
-    const Vector2D p_unit = p.unit();
-    const double theta = std::atan2(p_unit.y, p_unit.x);
+    p_bound_uv = p_bound_uv.unit();
+    const double theta = std::atan2(p_bound_uv.y, p_bound_uv.x);
     p_bound = rotate_2d(p_bound, theta);
   }
 
