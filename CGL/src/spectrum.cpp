@@ -10,9 +10,10 @@
 
 namespace CGL {
 
+
 // Construct equally spaced SPD from non-equally spaced SPD
 // Calculate by linear interpolation of non-equally spaced SPD
-SPD::SPD(const std::vector<Real>& _lambda, const std::vector<Real>& _phi) : phi(){
+ SPD::SPD(const std::vector<Real>& _lambda, const std::vector<Real>& _phi) : phi(){
   assert(_lambda.size() == _phi.size());
 
   // In case of a single sample
@@ -85,7 +86,7 @@ Real SPD::sample(const Real& l) const {
     const Real lambda_nearest = LAMBDA_MIN + static_cast<double>(lambda_index) * LAMBDA_INTERVAL;
     const Real t = (l - lambda_nearest) / LAMBDA_INTERVAL;
     assert(t >= 0 && t <= 1);
-    return (1.0f - t) * phi[lambda_index] + t * phi[lambda_index + 1];
+    return (1.0 - t) * phi[lambda_index] + t * phi[lambda_index + 1];
   }
 }
 

@@ -36,6 +36,7 @@ namespace CGL {
         ray_out.o /= 1000.0;
         ray_out.o =  c2w * ray_out.o + pos;
         ray_out.d = c2w * ray_out.d;
+        ray_out.d.normalize();
         ray_out.lambda = lambda;
         ray_out.ray_pdf = ray_pdf;
         ray_out.lambda_pdf = lambda_pdf;

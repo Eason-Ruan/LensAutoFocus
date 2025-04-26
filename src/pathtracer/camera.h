@@ -96,6 +96,9 @@ class Camera {
   double lensRadius;
   double focalDistance;
 
+  [[nodiscard]] Vector3D look_direction() const {
+    return (targetPos - pos).unit();
+  };
 protected:
   // Current position and target point (the point the camera is looking at).
   Vector3D pos, targetPos;

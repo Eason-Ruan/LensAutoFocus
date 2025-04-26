@@ -14,7 +14,41 @@
 
 #include "type.h"
 #include <vector3D.h>
+
 namespace CGL {
+  /* ---------- 常量，来自 IEC 61966-2-1 ---------- */
+  constexpr float kDecodeT  = 0.04045f;   // sRGB→线性 分段阈值 :contentReference[oaicite:0]{index=0}
+  constexpr float kEncodeT  = 0.0031308f; // 线性→sRGB 分段阈值 :contentReference[oaicite:1]{index=1}
+  constexpr float kInvGamma = 1.0f / 2.4f;
+  constexpr float kA = 1.055f;
+  constexpr float kB = 0.055f;
+  constexpr float kS = 12.92f;
+
+  inline double srgbToLinearCh(const double c)                 // sRGB→线性
+  {
+    return (c <= kDecodeT) ? c / kS
+                           : std::pow((c + kB) / kA, 2.4f);
+  }
+
+  inline double linearToSrgbCh(const double c)                 // 线性→sRGB
+  {
+    return (c <= kEncodeT) ? c * kS
+                           : kA * std::pow(c, kInvGamma) - kB;
+  }
+
+  inline Vector3D srgbToLinear(const Vector3D& srgb)             // in:[0,1] sRGB
+  {
+    return { srgbToLinearCh(srgb.r),
+             srgbToLinearCh(srgb.g),
+             srgbToLinearCh(srgb.b) };
+  }
+
+  inline Vector3D linearToSrgb(const Vector3D& lin)              // in:[0,1] 线性
+  {
+    return { linearToSrgbCh(lin.r),
+             linearToSrgbCh(lin.g),
+             linearToSrgbCh(lin.b) };
+  }
 
 using XYZ = Vector3D;
 using RGB = Vector3D;

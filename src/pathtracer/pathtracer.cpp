@@ -13,6 +13,7 @@ namespace CGL {
   Real getSpectrum(const Vector3D& radiance,const Ray& ray) {
     return RGB2Spectrum(radiance).sample(ray.lambda);
   }
+
 PathTracer::PathTracer() {
   gridSampler = new UniformGridSampler2D();
   hemisphereSampler = new UniformHemisphereSampler3D();
@@ -222,8 +223,6 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   // been implemented.
   //
   // REMOVE THIS LINE when you are ready to begin Part 3.
-  direct_hemisphere_sample = false;
-  isAccumBounces = true;
   if (!bvh->intersect(r, &isect))
     return Vector3D(0, 0, 0);
   return zero_bounce_radiance(r, isect) + at_least_one_bounce_radiance(r, isect);
@@ -243,7 +242,7 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y) {
   // TODO (Part 5):
   // Modify your implementation to include adaptive sampling.
   // Use the command line parameters "samplesPerBatch" and "maxTolerance"
-  spectrumSampling = true;
+  spectrumSampling = false;
   const int num_samples = static_cast<int>(ns_aa);          // total samples to evaluate
   const auto origin = Vector2D(static_cast<int>(x), static_cast<int>(y)); // bottom left corner of the pixel
   auto estSample = Vector3D(0.0, 0.0, 0.0);
@@ -254,24 +253,24 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y) {
     const auto samplePoint = origin + gridSampler->get_sample();
     Ray ray_out = camera->generate_ray(samplePoint.x / static_cast<double>(sampleBuffer.w),
                            samplePoint.y / static_cast<double>(sampleBuffer.h));
-    if (spectrumSampling && ray_out.d == Vector3D(0, 0, 0)) {
-      // std::cout << "Ray failed to pass lens, with"<< ray_out.o << std::endl;
-      continue;
-    }else if (spectrumSampling) {
-      // std::cout << "ray_out, o: " << ray_out.o << ", d: "<< ray_out.d << std::endl;
+    if (ray_out.d == Vector3D(0, 0, 0)) {
+      continue; // skip if Ray failed to pass lens,
     }
     Vector3D sample = est_radiance_global_illumination(ray_out);
+    const Real cos  = std::abs(dot(ray_out.d, camera->look_direction()));
     if (spectrumSampling) {
-      const Real cos  = std::abs(dot(ray_out.d, Vector3D(0, 0, -1)));
+      sample = srgbToLinear(sample / 255.);
       const Real radiance = getSpectrum(sample, ray_out) * cos / (ray_out.ray_pdf * ray_out.lambda_pdf);
       const int index = static_cast<int>((ray_out.lambda - 380) / 5);
       Vector3D XYZ;
       if (index >= 0 && index <= SPD::color_matching_func_samples - 1) {
-        XYZ[0] = radiance * SPD::color_matching_func_x[index];
-        XYZ[1] = radiance * SPD::color_matching_func_y[index];
-        XYZ[2] = radiance * SPD::color_matching_func_z[index];
+        XYZ.x = radiance * SPD::color_matching_func_x[index];
+        XYZ.y = radiance * SPD::color_matching_func_y[index];
+        XYZ.z = radiance * SPD::color_matching_func_z[index];
       }
       sample = XYZ;
+    } else {
+      sample = sample * cos * gain / (ray_out.ray_pdf);
     }
     estSample += sample;
     sampled_num ++;
@@ -287,6 +286,7 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y) {
   if (spectrumSampling) {
     estSample /= sampled_num;
     estSample = XYZ2RGB(estSample);
+    estSample = linearToSrgb(estSample);
   } else {
     estSample /= sampled_num;
   }

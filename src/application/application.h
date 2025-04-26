@@ -63,6 +63,11 @@ struct AppConfig {
     pathtracer_filename = "";
     pathtracer_lensRadius = 0.0;
     pathtracer_focalDistance = 4.7;
+
+    pathtracer_gain = 1.0;
+    pathtracer_is_spectrum_sampling = false;
+    is_output_video = false;
+    output_video_config_filename = "";
   }
 
   size_t pathtracer_ns_aa;
@@ -86,6 +91,11 @@ struct AppConfig {
 
   double pathtracer_lensRadius;
   double pathtracer_focalDistance;
+
+  double pathtracer_gain;
+  bool pathtracer_is_spectrum_sampling; // decide whether to use spectrum or RGB
+  bool is_output_video;
+  string output_video_config_filename; // TODO: realize video config file
 };
 
 class Application : public Renderer {

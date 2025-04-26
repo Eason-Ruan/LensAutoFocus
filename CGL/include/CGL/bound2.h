@@ -25,7 +25,7 @@ namespace CGL {
         bool isValid() const { return p0.x < p1.x && p0.y < p1.y; }
 
         Vector2D samplePoint(Real& pdf) const {
-            pdf = 1.0f / area();
+            pdf = 1.0 / area();
             const double u = random_uniform();
             return p0 + u * (p1 - p0);
         }

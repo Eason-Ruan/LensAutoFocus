@@ -67,7 +67,7 @@ public:
    * Creates a new pathtracer instance.
    */
   RaytracedRenderer(size_t ns_aa = 1, 
-             size_t max_ray_depth = 4, bool is_accumulate_bounces =false, size_t ns_area_light = 1,
+             size_t max_ray_depth = 4, bool is_accumulate_bounces =true, size_t ns_area_light = 1,
              size_t ns_diff = 1, size_t ns_glsy = 1, size_t ns_refr = 1,
              size_t num_threads = 1,
              size_t samples_per_batch = 32,
@@ -75,8 +75,11 @@ public:
              HDRImageBuffer* envmap = NULL,
              bool direct_hemisphere_sample = false,
              string filename = "",
-             double lensRadius = 0.25,
-             double focalDistance = 4.7);
+             double lensRadius = 0.25, // TODO: change default value and implement radius change
+             double focalDistance = 1500,
+             double gain = 1.0,
+             bool is_spectrum_sampling = false
+             );
 
   /**
    * Destructor.
@@ -220,6 +223,7 @@ public:
 
   double lensRadius;
   double focalDistance;
+  double gain;
 
   // Components //
 
@@ -250,6 +254,9 @@ public:
   bool show_rays;                         ///< show rays from raylog
   
   std::string filename;
+
+  // Spectrum Sampling //
+  bool is_spectrum_sampling = false; // decide whether to use spectrum or RGB
 };
 
 }  // namespace CGL

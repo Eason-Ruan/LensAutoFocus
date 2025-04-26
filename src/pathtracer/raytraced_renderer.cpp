@@ -48,7 +48,9 @@ RaytracedRenderer::RaytracedRenderer(size_t ns_aa,
                        bool direct_hemisphere_sample,
                        string filename,
                        double lensRadius,
-                       double focalDistance) {
+                       double focalDistance,
+                       double gain,
+                       bool is_spectrum_sampling) {
   state = INIT;
 
   pt = new PathTracer();
@@ -63,6 +65,8 @@ RaytracedRenderer::RaytracedRenderer(size_t ns_aa,
   pt->samplesPerBatch = samples_per_batch;                  // Number of samples per batch
   pt->maxTolerance = max_tolerance;                         // Maximum tolerance for early termination
   pt->direct_hemisphere_sample = direct_hemisphere_sample;  // Whether to use direct hemisphere sampling vs. Importance Sampling
+  pt->gain = gain;                                              // Gain for the image
+  pt->spectrumSampling = is_spectrum_sampling;          // Whether to use spectrum sampling or RGB sampling
 
   this->lensRadius = lensRadius;
   this->focalDistance = focalDistance;
@@ -312,7 +316,7 @@ void RaytracedRenderer::start_raytracing() {
       
       fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
       // 设置为新的相机
-      cameraLens->lensSys->focus(-0.2);
+      cameraLens->lensSys->focus(focalDistance);
 
       fprintf(stdout, "[PathTracer] Computing exit pupil bounds...\n"); fflush(stdout);
       cameraLens->lensSys->compute_exit_pupil_bounds();

@@ -37,8 +37,8 @@ inline bool refract(const Vector3D& wi, Vector3D& wt, const Vector3D& n, const d
 
 // Rotate a point around the origin in 2D
 inline Vector2D rotate_2d(const Vector2D& p, double theta) {
-  return Vector2D(p.x * std::cos(theta) - p.y * std::sin(theta),
-                  p.x * std::sin(theta) + p.y * std::cos(theta));
+  return {p.x * std::cos(theta) - p.y * std::sin(theta),
+                  p.x * std::sin(theta) + p.y * std::cos(theta)};
 }
 
 // Paraxial ray for ray tracing

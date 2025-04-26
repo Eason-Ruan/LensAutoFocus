@@ -105,9 +105,12 @@ namespace CGL {
         double tm_key;                             ///< key value
         double tm_wht;                             ///< white point
 
-        // spectrum sampling control
-        bool spectrumSampling = true;
+        // spectrum sampling control //
+        bool spectrumSampling;
         Prl2::Sampler* randomSampler = nullptr;
+
+        // Sample Gain //
+        double gain;
     };
 
 }  // namespace CGL

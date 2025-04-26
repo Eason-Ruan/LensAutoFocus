@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
       config.pathtracer_accumulate_bounces = settings.pathtracer_accumulate_bounces;
     }
   } else {
-    while ((opt = getopt(argc, argv, "s:l:t:m:o:e:h:H:f:r:c:b:d:a:p:")) !=
+    while ((opt = getopt(argc, argv, "s:S:l:t:m:o:e:h:H:f:r:c:b:d:a:p:v:V:g:")) !=
            -1) { // for each option...
       switch (opt) {
       case 'f':
@@ -144,6 +144,10 @@ int main(int argc, char **argv) {
         break;
       case 's':
         config.pathtracer_ns_aa = atoi(optarg);
+        break;
+      case 'S':
+        config.pathtracer_is_spectrum_sampling = true;
+        optind --;
         break;
       case 'l':
         config.pathtracer_ns_area_light = atoi(optarg);
@@ -179,6 +183,16 @@ int main(int argc, char **argv) {
       case 'H':
         config.pathtracer_direct_hemisphere_sample = true;
         optind--;
+        break;
+      case 'v':
+        config.is_output_video = true;
+        optind--;
+        break;
+      case 'V':
+        config.output_video_config_filename  = string(optarg);
+        break;
+      case 'g':
+        config.pathtracer_gain = atof(optarg);
         break;
       default:
         usage(argv[0]);

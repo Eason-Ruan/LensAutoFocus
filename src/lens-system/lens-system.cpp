@@ -365,13 +365,13 @@ void LensSystem::compute_cardinal_points() {
 }
 
 bool LensSystem::focus(const double focus_z) {
-  const double image_distance = (focus_z * image_focal_length) / (focus_z - image_focal_length);
+  std::cout << focus_z << std::endl;
+  const double image_distance = - (focus_z * image_focal_length) / (focus_z - image_focal_length);
   // 计算需要移动的距离
-  const double delta = image_distance - (image_principal_z - object_principal_z);
-
+  const double delta = image_distance - image_principal_z;
   // Move lens elements
   for (auto& element : elements) {
-    element.z -= delta;
+    element.z += delta;
   }
 
   // Recompute cardinal points
@@ -436,7 +436,7 @@ bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampl
   // Compute position on film
   u = 2.0 * u - 1.0; //convert
   v = 2.0 * v - 1.0; //convert
-  const Vector2D p = {0.5f * width * u, 0.5f * height * v};
+  const Vector2D p = {0.5 * width * u, 0.5 * height * v};
 
   // Choose exit pupil bound
   const double r = p.norm();
@@ -462,7 +462,7 @@ bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampl
     Vector2D p_bound = default_bound.p0 + Vector2D(
         sampler.getNext() * (default_bound.p1.x - default_bound.p0.x),
         sampler.getNext() * (default_bound.p1.y - default_bound.p0.y));
-    
+
     // 跳过旋转
     
     // Make input ray
@@ -499,10 +499,13 @@ bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampl
   // Sample point on exit pupil bound
   double pdf_area;
   Vector2D p_bound = exit_pupil_bound.samplePoint(pdf_area);
+  const Real p_bound_r = p_bound.norm();
+  p_bound = Vector2D(p_bound_r, 0);
 
   // Rotate sampled point
   if (r > 0) {
-    const double theta = std::atan2(v, u);
+    const Vector2D p_unit = p.unit();
+    const double theta = std::atan2(p_unit.y, p_unit.x);
     p_bound = rotate_2d(p_bound, theta);
   }
 
