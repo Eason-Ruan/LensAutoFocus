@@ -496,11 +496,6 @@ bool LensSystem::sample_ray(double u, double v, const double lambda, Prl2::Sampl
   const Bounds2& exit_pupil_bound = exit_pupil_bounds[exit_pupil_bounds_index];
   if (!exit_pupil_bound.isValid()) return false;
 
-
-
-
-  0
-
   // Sample point on exit pupil bound
   double pdf_area;
   auto p_bound_uv = Vector2D(random_uniform(), random_uniform());
