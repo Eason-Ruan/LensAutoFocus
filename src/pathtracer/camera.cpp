@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <cmath>
 
 #include "CGL/misc.h"
 #include "CGL/vector2D.h"
@@ -14,6 +15,10 @@ using std::max;
 using std::min;
 using std::ifstream;
 using std::ofstream;
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace CGL {
 

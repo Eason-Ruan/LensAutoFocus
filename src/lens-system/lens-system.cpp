@@ -422,9 +422,9 @@ bool LensSystem::compute_exit_pupil_bounds() {
                          sqrt(width * width + height * height);
         exit_pupil_bounds[idx] = compute_exit_pupil_bound(Vector2D(r, 0));
 
-        std::cout << "Finished " << idx << "th computation of exit pupil bounds"
-                  << std::endl;
-        std::cout << exit_pupil_bounds[idx] << std::endl;
+        //std::cout << "Finished " << idx << "th computation of exit pupil bounds"
+        //          << std::endl;
+        //std::cout << exit_pupil_bounds[idx] << std::endl;
       },
       16, num_exit_pupil_bounds);
 

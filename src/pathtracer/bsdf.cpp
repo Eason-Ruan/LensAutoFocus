@@ -7,12 +7,15 @@
 #include <algorithm>
 #include <iostream>
 #include <utility>
-#include <xpc/xpc.h>
 
 
 using std::max;
 using std::min;
 using std::swap;
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace CGL {
 
