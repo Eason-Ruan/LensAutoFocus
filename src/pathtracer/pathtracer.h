@@ -68,7 +68,7 @@ namespace CGL {
         /**
          * Trace a camera ray given by the pixel coordinate.
          */
-        void raytrace_pixel(size_t x, size_t y);
+        void raytrace_pixel(size_t x, size_t y, bool is_focusing = false);
 
         // Integrator sampling settings //
 

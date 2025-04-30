@@ -290,7 +290,6 @@ void RaytracedRenderer::start_raytracing() {
   pt->scene = scene;
 
   /* lens */
-  pt->spectrumSampling = true;
   
   fprintf(stdout, "[PathTracer] Initializing lens system...\n"); fflush(stdout);
   bool use_lens_system = true;
@@ -302,12 +301,10 @@ void RaytracedRenderer::start_raytracing() {
     }
     
     if (use_lens_system) {
+      // initialize sampler
       fprintf(stdout, "[PathTracer] Creating random sampler...\n"); fflush(stdout);
       sampler = new Prl2::RandomSampler;
-      if (!sampler) {
-        fprintf(stderr, "[PathTracer] Error: Failed to create sampler!\n");
-        use_lens_system = false;
-      }
+      cameraLens->random_sampler = sampler;
     }
     
     if (use_lens_system) {
@@ -317,12 +314,9 @@ void RaytracedRenderer::start_raytracing() {
       fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
       // 设置为新的相机
       cameraLens->lensSys->focus(focalDistance);
-
       fprintf(stdout, "[PathTracer] Computing exit pupil bounds...\n"); fflush(stdout);
       cameraLens->lensSys->compute_exit_pupil_bounds();
       fprintf(stdout, "[PathTracer] Assigning sampler to camera...\n"); fflush(stdout);
-      cameraLens->random_sampler = sampler;
-      pt->spectrumSampling = true;
       pt->camera = cameraLens;
       fprintf(stdout, "[PathTracer] Lens system initialization complete.\n"); fflush(stdout);
     } else {
@@ -334,7 +328,6 @@ void RaytracedRenderer::start_raytracing() {
         delete sampler;
         sampler = nullptr;
       }
-      pt->spectrumSampling = false;
       pt->camera = camera;
       fprintf(stdout, "[PathTracer] Using standard camera instead of lens system.\n"); fflush(stdout);
     }
@@ -361,7 +354,6 @@ void RaytracedRenderer::start_raytracing() {
       delete sampler;
       sampler = nullptr;
     }
-    pt->spectrumSampling = false;
     pt->camera = camera;
     fprintf(stdout, "[PathTracer] Using standard camera instead of lens system.\n"); fflush(stdout);
   }

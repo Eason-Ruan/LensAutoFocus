@@ -234,7 +234,7 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   return L_out;
 }
 
-void PathTracer::raytrace_pixel(const size_t x, const size_t y) {
+void PathTracer::raytrace_pixel(const size_t x, const size_t y, const bool is_focusing) {
   // TODO (Part 1.2):
   // Make a loop that generates num_samples camera rays and traces them
   // through the scene. Return the average Vector3D.
@@ -242,7 +242,6 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y) {
   // TODO (Part 5):
   // Modify your implementation to include adaptive sampling.
   // Use the command line parameters "samplesPerBatch" and "maxTolerance"
-  spectrumSampling = false;
   const int num_samples = static_cast<int>(ns_aa);          // total samples to evaluate
   const auto origin = Vector2D(static_cast<int>(x), static_cast<int>(y)); // bottom left corner of the pixel
   auto estSample = Vector3D(0.0, 0.0, 0.0);
