@@ -44,7 +44,7 @@ namespace CGL {
          */
         void clear();
 
-        void autofocus(Vector2D loc);
+        void focus(double distance = 50000);
 
         /**
          * Trace an ray in the scene.

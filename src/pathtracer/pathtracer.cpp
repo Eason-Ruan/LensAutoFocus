@@ -294,7 +294,7 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y, const bool is_fo
 }
 
 
-void PathTracer::autofocus(Vector2D loc) {
+void PathTracer::focus(double delta_distance) {
   // TODO Redesign the autofocus function
 }
 

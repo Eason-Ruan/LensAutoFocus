@@ -304,6 +304,7 @@ void RaytracedRenderer::start_raytracing() {
       // initialize sampler
       fprintf(stdout, "[PathTracer] Creating random sampler...\n"); fflush(stdout);
       sampler = new Prl2::RandomSampler;
+      fprintf(stdout, "[PathTracer] Assigning sampler to camera...\n"); fflush(stdout);
       cameraLens->random_sampler = sampler;
     }
     
@@ -314,11 +315,11 @@ void RaytracedRenderer::start_raytracing() {
       fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
       // 设置为新的相机
       cameraLens->lensSys->focus(focalDistance);
-      fprintf(stdout, "[PathTracer] Computing exit pupil bounds...\n"); fflush(stdout);
+      fprintf(stdout, "[PathTracer] Computing default exit pupil bounds...\n"); fflush(stdout);
       cameraLens->lensSys->compute_exit_pupil_bounds();
-      fprintf(stdout, "[PathTracer] Assigning sampler to camera...\n"); fflush(stdout);
       pt->camera = cameraLens;
-      fprintf(stdout, "[PathTracer] Lens system initialization complete.\n"); fflush(stdout);
+      fprintf(stdout, "[PathTracer] Lens system default initialization complete.\n"); fflush(stdout);
+      // autofocus(Vector2D(0,0), Vector2D(0,0)); // where do the autofocusing.
     } else {
       if (cameraLens) {
         delete cameraLens;
@@ -722,8 +723,21 @@ void RaytracedRenderer::raytrace_cell(ImageBuffer& buffer) {
   }
 }
 
-void RaytracedRenderer::autofocus(Vector2D loc) {
-  pt->autofocus(loc);
+void RaytracedRenderer::autofocus(const Vector2D& left_top) {
+  const size_t w = 32;
+  const size_t h = 32;
+  ImageBuffer focusBuffer(w, h);
+  bool is_focused = false;
+  while (!is_focused) {
+    // TODO: sampling each pixel with path tracer
+    // TODO: single step evaluation
+    /* Read from focusBuffer
+     * Analyze contrast and other properties,
+     * Access pt->focus (delta) to reset camera and everything, mind the gap that focus is in mm and positive for moving the camera lense close to sensor.
+     */
+  }
+
+
 }
 
 void RaytracedRenderer::worker_thread() {

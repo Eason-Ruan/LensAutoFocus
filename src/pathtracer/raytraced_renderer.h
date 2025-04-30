@@ -135,7 +135,7 @@ public:
   /**
    * If the pathtracer is in RENDER, set the camera focal distance to the vector.
    */
-  void autofocus(Vector2D loc);
+  void autofocus(const Vector2D &left_top);
 
   /**
    * If the pathtracer is in READY, transition to VISUALIZE.
