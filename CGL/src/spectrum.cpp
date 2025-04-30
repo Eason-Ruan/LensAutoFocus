@@ -14,7 +14,6 @@ namespace CGL {
 // Construct equally spaced SPD from non-equally spaced SPD
 // Calculate by linear interpolation of non-equally spaced SPD
  SPD::SPD(const std::vector<Real>& _lambda, const std::vector<Real>& _phi) : phi(){
-  assert(_lambda.size() == _phi.size());
 
   // In case of a single sample
   if (_lambda.size() == 1) {
