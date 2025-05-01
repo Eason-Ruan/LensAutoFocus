@@ -373,11 +373,16 @@ bool LensSystem::focus(const double focus_z) {
   for (auto& element : elements) {
     element.z += delta;
   }
-
   // Recompute cardinal points
   compute_cardinal_points();
-
   return true;
+}
+
+void LensSystem::focus_delta(const double delta) {
+  for (auto & element : elements) {
+    element.z += delta;
+  }
+  compute_cardinal_points();
 }
 
 Bounds2 LensSystem::compute_exit_pupil_bound(const Vector2D& p) const {

@@ -108,6 +108,7 @@ class LensSystem {
   // Focus lens at z = focus_z
   bool focus(double focus_z);
 
+  void  focus_delta(double delta); // currently do not verify focus_delta to be valid
   // Compute exit pupil bounds at a given point on the film
   Bounds2 compute_exit_pupil_bound(const Vector2D& p) const;
   // Compute exit pupil bounds

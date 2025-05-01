@@ -234,7 +234,7 @@ Vector3D PathTracer::est_radiance_global_illumination(const Ray &r) {
   return L_out;
 }
 
-void PathTracer::raytrace_pixel(const size_t x, const size_t y, const bool is_focusing) {
+void PathTracer::raytrace_pixel(const size_t x, const size_t y, const bool is_focusing, HDRImageBuffer* focus_buffer, const size_t focus_x, const size_t focus_y) {
   // TODO (Part 1.2):
   // Make a loop that generates num_samples camera rays and traces them
   // through the scene. Return the average Vector3D.
@@ -285,17 +285,26 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y, const bool is_fo
   if (spectrumSampling) {
     estSample /= sampled_num;
     estSample = XYZ2RGB(estSample);
-    estSample = linearToSrgb(estSample);
+    estSample = linearToSrgb(estSample) * gain;
   } else {
     estSample /= sampled_num;
   }
-  sampleBuffer.update_pixel(estSample, x, y);
-  sampleCountBuffer[x + y * sampleBuffer.w] = sampled_num;
+
+  if (!is_focusing) {
+    sampleBuffer.update_pixel(estSample, x, y);
+    sampleCountBuffer[x + y * sampleBuffer.w] = sampled_num;
+  } else {
+    if (focus_buffer == nullptr) {
+      std::cerr << "Focus buffer is null!" << std::endl;
+      return;
+    }
+    focus_buffer->update_pixel(estSample, x  - focus_x, y - focus_y);
+  }
 }
 
 
-void PathTracer::focus(double delta_distance) {
-  // TODO Redesign the autofocus function
+void PathTracer::focus(double delta_distance) const {
+  camera->focus_delta(delta_distance);
 }
 
 } // namespace CGL

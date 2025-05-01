@@ -88,10 +88,11 @@ class Camera {
    * \param x x-coordinate of the ray sample in the view plane
    * \param y y-coordinate of the ray sample in the view plane
    */
-  virtual Ray generate_ray(double x, double y) const;
+  [[nodiscard]] virtual Ray generate_ray(double x, double y) const;
 
-  Ray generate_ray_for_thin_lens(double x, double y, double rndR, double rndTheta) const;
+  [[nodiscard]] Ray generate_ray_for_thin_lens(double x, double y, double rndR, double rndTheta) const;
 
+  virtual void focus_delta (double delta_distance);
   // Lens aperture and focal distance for depth of field effects.
   double lensRadius;
   double focalDistance;

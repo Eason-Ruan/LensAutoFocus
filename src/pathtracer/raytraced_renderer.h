@@ -135,7 +135,7 @@ public:
   /**
    * If the pathtracer is in RENDER, set the camera focal distance to the vector.
    */
-  void autofocus(const Vector2D &left_top);
+  void autofocus(const Vector2D left_top);
 
   /**
    * If the pathtracer is in READY, transition to VISUALIZE.
@@ -191,17 +191,26 @@ public:
    */
   void raytrace_tile(int tile_x, int tile_y, int tile_w, int tile_h);
 
+  void trace_focus_tile(int tile_x, int tile_y, int tile_w, int tile_h,
+                        HDRImageBuffer* focus_buffer = nullptr);
   /**
    * Implementation of a ray tracer worker thread
    */
   void worker_thread();
+
+  /**
+   * Ray trace focus area for auto focus
+   */
+  void focus_thread();
 
   enum State {
     INIT,               ///< to be initialized
     READY,              ///< initialized ready to do stuff
     VISUALIZE,          ///< visualizing BVH accelerator aggregate
     RENDERING,          ///< started but not completed raytracing
-    DONE                ///< started and completed raytracing
+    DONE,                ///< started and completed raytracing
+    FOCUS_RENDERING,           ///< started but not completed raytracing for focus
+    FOCUS_RENDER_DONE           ///< started and completed raytracing for focus
   };
 
   PathTracer *pt;
@@ -229,7 +238,9 @@ public:
 
   BVHAccel* bvh;                 ///< BVH accelerator aggregate
   ImageBuffer frameBuffer;       ///< frame buffer
+  HDRImageBuffer* focusBuffer;
   Timer timer;                   ///< performance test timer
+  std::vector<double> deltas;  /// update delta for each iteration
 
   std::vector<int> sampleCountBuffer;   ///< sample count buffer
 

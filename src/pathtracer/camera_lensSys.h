@@ -16,7 +16,8 @@ namespace CGL {
             // 设置相机参数，使其与镜头系统匹配
             lensSys  = new LensSystem(lensFile, 36, 27);
         }
-        Ray generate_ray(double x, double y) const override;
+        [[nodiscard]] Ray generate_ray(double x, double y) const override;
+        void focus_delta(double delta_distance) override;
         LensSystem* lensSys;
         Prl2::Sampler* random_sampler;
         ~CameraLensSys() override {

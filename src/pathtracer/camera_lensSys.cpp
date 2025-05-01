@@ -43,4 +43,7 @@ namespace CGL {
         return ray_out;
     }
 
+    void CameraLensSys::focus_delta(double delta_distance) {
+        lensSys->focus_delta(delta_distance);
+    }
 }

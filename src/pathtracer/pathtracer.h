@@ -44,7 +44,7 @@ namespace CGL {
          */
         void clear();
 
-        void focus(double distance = 50000);
+        void focus(double delta_distance = 0) const;
 
         /**
          * Trace an ray in the scene.
@@ -68,7 +68,7 @@ namespace CGL {
         /**
          * Trace a camera ray given by the pixel coordinate.
          */
-        void raytrace_pixel(size_t x, size_t y, bool is_focusing = false);
+        void raytrace_pixel(size_t x, size_t y, bool is_focusing = false, HDRImageBuffer *focus_buffer = nullptr, size_t focus_x = 0, size_t focus_y = 0);
 
         // Integrator sampling settings //
 
