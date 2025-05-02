@@ -138,6 +138,11 @@ public:
   void autofocus(const Vector2D left_top);
 
   /**
+   * return the contrast of the focus buffer.
+   */
+  float computeContrast(const HDRImageBuffer* buffer) const;
+
+  /**
    * If the pathtracer is in READY, transition to VISUALIZE.
    */
   void start_visualizing();

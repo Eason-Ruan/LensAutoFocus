@@ -742,45 +742,123 @@ void RaytracedRenderer::raytrace_cell(ImageBuffer& buffer) {
   }
 }
 
+float RaytracedRenderer::computeContrast(const HDRImageBuffer* buffer) const {
+  float sum = 0.0f;
+  for (size_t y = 1; y + 1 < buffer->h; ++y) {
+    for (size_t x = 1; x + 1 < buffer->w; ++x) {
+
+      const Vector3D& P  = buffer->data[x + y * buffer->w];
+      const Vector3D& PR = buffer->data[x+1 + y * buffer->w];
+      const Vector3D& PL = buffer->data[x-1 + y * buffer->w];
+      const Vector3D& PU = buffer->data[x + (y-1) * buffer->w];
+      const Vector3D& PD = buffer->data[x + (y+1) * buffer->w];
+
+      auto lum = [&](const Vector3D& v){
+        return 0.2126f*v.x + 0.7152f*v.y + 0.0722f*v.z;
+      };
+      float lm = lum(P), lR = lum(PR), lL = lum(PL), lU = lum(PU), lD = lum(PD);
+
+      float gx = lR - lL;
+      float gy = lU - lD;
+      sum += gx*gx + gy*gy;
+    }
+  }
+  return sum;
+}
+
+
 void RaytracedRenderer::autofocus(const Vector2D left_top) {
   const State original_state = state;
   constexpr size_t w = 32;
   constexpr size_t h = 32;
   focusBuffer = new HDRImageBuffer(w, h);
   bool is_focused = false;
+  float near = 0.0f;
+  float far = 50000.0f;
+  float low = near;
+  float high = far;
+  float contrast1, contrast2;
+  float curr = far;// assume low <= curr <= high always stands
+  int max_iter = 10;
+  int iter = 0;
+  float threshold = 0.1f;
+  float delta;
 
 
   while (!is_focused) {
+    if (iter++ > max_iter) {
+      fprintf(stdout, "[PathTracer] Autofocus failed!\n"); fflush(stdout);
+      break;
+    }
+
     // TODO: sampling each pixel with path tracer
     state = FOCUS_RENDERING;
     num_tiles_w = w / imageTileSize + 1;
     num_tiles_h = h / imageTileSize + 1;
     tilesTotal = num_tiles_w * num_tiles_h;
     tilesDone = 0;
+
+    // set the search focus
+    float mid_low = low + (high - low) / 3.0f; //-----low---mid_low---mid_high---high-----
+    float mid_high = low + 2 * (high - low) / 3.0f;
+    delta = curr - mid_low;
+    pt->focus(delta);
+
     // populate the tile work queue
-    for (auto y = static_cast<size_t>(left_top.y); y < h; y += imageTileSize) {
-      for (auto x = static_cast<size_t>(left_top.x); x < w; x += imageTileSize) {
-        workQueue.put_work(WorkItem(x, y, imageTileSize, imageTileSize));
+    {
+      for (auto y = static_cast<size_t>(left_top.y); y < h; y += imageTileSize) {
+        for (auto x = static_cast<size_t>(left_top.x); x < w; x += imageTileSize) {
+          workQueue.put_work(WorkItem(x, y, imageTileSize, imageTileSize));
+        }
       }
+      fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
+      for (int i=0; i<numWorkerThreads; i++) {
+        workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
+      }
+      unique_lock<std::mutex> lk(m_done);
+      cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
+      lk.unlock();
     }
-    fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
-    for (int i=0; i<numWorkerThreads; i++) {
-      workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
-    }
-    unique_lock<std::mutex> lk(m_done);
-    cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
-    lk.unlock();
-
-    // TODO: single step evaluation
-    /* Read from focusBuffer
-     * Analyze contrast and other properties,
-     * Access pt->focus (delta) to reset camera and everything, mind the gap that focus is in mm and positive for moving the camera lense close to sensor.
-     * Update deltas data member
-     * Validate is_focused
-     */
-
-    // before continuing
+    //evaluate the focusBuffer
+    contrast1 = computeContrast(focusBuffer); 
     focusBuffer->clear();
+
+    // evaluate the second focus
+    state = FOCUS_RENDERING;
+    pt->focus(-delta);
+    delta = curr - mid_high;
+    pt->focus(delta);
+    curr = mid_high;
+
+    // populate the tile work queue
+    {    
+      for (auto y = static_cast<size_t>(left_top.y); y < h; y += imageTileSize) {
+        for (auto x = static_cast<size_t>(left_top.x); x < w; x += imageTileSize) {
+          workQueue.put_work(WorkItem(x, y, imageTileSize, imageTileSize));
+        }
+      }
+      fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
+      for (int i=0; i<numWorkerThreads; i++) {
+        workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
+      }
+      unique_lock<std::mutex> lk(m_done);
+      cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
+      lk.unlock();
+    }
+
+    //evaluate the focusBuffer
+    contrast2 = computeContrast(focusBuffer);
+    focusBuffer->clear();
+    if ( contrast1 > contrast2){
+      high = mid_high;
+      pt->focus(curr - mid_low);
+    }
+    else
+      low = mid_low;
+    if ( abs(contrast1 - contrast2) < threshold || abs(mid_high - mid_low) < threshold) {
+      is_focused = true;
+      fprintf(stdout, "[PathTracer] Autofocus complete!\n"); fflush(stdout);
+    }
   }
   state = original_state; // return with original state
   delete focusBuffer;
