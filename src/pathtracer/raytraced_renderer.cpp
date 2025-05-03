@@ -270,7 +270,7 @@ void RaytracedRenderer::start_visualizing() {
 /**
  * If the pathtracer is in READY, transition to RENDERING.
  */
-void RaytracedRenderer::start_raytracing() {
+void RaytracedRenderer::start_raytracing(float adjusted_focus) {
   if (state != READY) return;
 
   rayLog.clear();
@@ -315,12 +315,13 @@ void RaytracedRenderer::start_raytracing() {
       
       fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
       // 设置为新的相机
-      cameraLens->lensSys->focus(focalDistance);
+      cameraLens->lensSys->focus(adjusted_focus);
+      std::cout << "[PathTracer] Camera  at focus = " << adjusted_focus << std::endl;
       fprintf(stdout, "[PathTracer] Computing default exit pupil bounds...\n"); fflush(stdout);
       cameraLens->lensSys->compute_exit_pupil_bounds();
       pt->camera = cameraLens;
       fprintf(stdout, "[PathTracer] Lens system default initialization complete.\n"); fflush(stdout);
-      autofocus(Vector2D(0,0)); // where do the autofocusing.
+      //autofocus(Vector2D(0,0)); // where do the autofocusing.
     } else {
       if (cameraLens) {
         delete cameraLens;
@@ -406,20 +407,63 @@ void RaytracedRenderer::start_raytracing() {
 
 void RaytracedRenderer::render_to_file(string filename, size_t x, size_t y, size_t dx, size_t dy) {
   if (x == -1) {
-    unique_lock<std::mutex> lk(m_done);
-    start_raytracing();
+    /*unique_lock<std::mutex> lk(m_done);
+    start_raytracing(adjusted_focus);
     cv_done.wait(lk, [this]{ return state == DONE; });
     lk.unlock();
     save_image(filename);
-    fprintf(stdout, "[PathTracer] Job completed.\n");
+    fprintf(stdout, "[PathTracer] Job completed.\n");*/
+      float best_focus = autofocus(Vector2D(0, 0));
+      float delta = focalDistance - best_focus;
+      int iter = 10;
+      fprintf(stdout, "[PathTracer] A.\n");fflush(stdout);
+      std::string folder = filename;
+      if (!folder.empty() && folder.back() != '/' && folder.back() != '\\') {
+          folder += '/';  // 确保末尾有 '/'
+      }
+
+      for (int i = 0; i < iter; ++i) {
+          float adjusted_focus = focalDistance - delta * (static_cast<float>(i) / iter);
+
+          this->stop();// <-- 加上这句恢复到 READY 状态，否则 start_raytracing 会被跳过
+
+          std::unique_lock<std::mutex> lk(m_done);
+          start_raytracing(adjusted_focus);
+          cv_done.wait(lk, [this] { return state == DONE; });
+          lk.unlock();
+
+          std::stringstream ss;
+          ss << folder << "focus_" << i << ".png";  // 生成形如 ./image/focus_0.png
+          save_image(ss.str());
+
+          std::cout << "[PathTracer] Saved: " << ss.str() << " at focus = " << adjusted_focus << std::endl;
+          fprintf(stdout, "[PathTracer] myJob completed.\n");
+      }
   } else {
-    render_cell = true;
+    /*render_cell = true;
     cell_tl = Vector2D(x,y);
     cell_br = Vector2D(x+dx,y+dy);
     ImageBuffer buffer;
     raytrace_cell(buffer);
     save_image(filename, &buffer);
-    fprintf(stdout, "[PathTracer] Cell job completed.\n");
+    fprintf(stdout, "[PathTracer] Cell job completed.\n");*/
+      render_cell = true;
+      fprintf(stdout, "[PathTracer] B.\n");fflush(stdout);
+      cell_tl = Vector2D(x, y);
+      cell_br = Vector2D(x + dx, y + dy);
+      ImageBuffer buffer;
+      raytrace_cell(buffer);
+      std::string folder = filename;
+      fprintf(stdout, "[PathTracer] Entering render_else");
+      if (!folder.empty() && folder.back() != '/' && folder.back() != '\\') {
+          folder += '/';  // 确保末尾有 '/'
+      }
+      std::stringstream ss;
+      ss << folder << "focus_cell.png";  // 生成形如 ./image/focus_0.png
+      save_image(ss.str());
+      //save_image(filename, &buffer);
+      fprintf(stdout, "[PathTracer] Cell job completed.\n");
+
   }
 }
 
@@ -725,12 +769,12 @@ void RaytracedRenderer::raytrace_cell(ImageBuffer& buffer) {
   size_t h = tile_end_y - tile_start_y;
   HDRImageBuffer sb(w, h);
   buffer.resize(w,h);
-
+  float adjusted_focus;
   stop();
   render_cell = true;
   {
     unique_lock<std::mutex> lk(m_done);
-    start_raytracing();
+    start_raytracing(adjusted_focus);
     cv_done.wait(lk, [this]{ return state == DONE; });
     lk.unlock();
   }
@@ -767,101 +811,104 @@ float RaytracedRenderer::computeContrast(const HDRImageBuffer* buffer) const {
 }
 
 
-void RaytracedRenderer::autofocus(const Vector2D left_top) {
-  const State original_state = state;
-  constexpr size_t w = 32;
-  constexpr size_t h = 32;
-  focusBuffer = new HDRImageBuffer(w, h);
-  bool is_focused = false;
-  float near = 0.0f;
-  float far = 50000.0f;
-  float low = near;
-  float high = far;
-  float contrast1, contrast2;
-  float curr = far;// assume low <= curr <= high always stands
-  int max_iter = 10;
-  int iter = 0;
-  float threshold = 0.1f;
-  float delta;
+float RaytracedRenderer::autofocus(const Vector2D left_top) {
+    //简化处理
+    float curr = 5;
+    return curr;
+  //const State original_state = state;
+  //constexpr size_t w = 32;
+  //constexpr size_t h = 32;
+  //focusBuffer = new HDRImageBuffer(w, h);
+  //bool is_focused = false;
+  //float near = 0.0f;
+  //float far = 50000.0f;
+  //float low = near;
+  //float high = far;
+  //float contrast1, contrast2;
+  //float curr = far;// assume low <= curr <= high always stands
+  //int max_iter = 10;
+  //int iter = 0;
+  //float threshold = 0.1f;
+  //float delta;
 
 
-  while (!is_focused) {
-    if (iter++ > max_iter) {
-      fprintf(stdout, "[PathTracer] Autofocus failed!\n"); fflush(stdout);
-      break;
-    }
+  //while (!is_focused) {
+  //  if (iter++ > max_iter) {
+  //    fprintf(stdout, "[PathTracer] Autofocus failed!\n"); fflush(stdout);
+  //    break;
+  //  }
 
-    // TODO: sampling each pixel with path tracer
-    state = FOCUS_RENDERING;
-    num_tiles_w = w / imageTileSize + 1;
-    num_tiles_h = h / imageTileSize + 1;
-    tilesTotal = num_tiles_w * num_tiles_h;
-    tilesDone = 0;
+  //  // TODO: sampling each pixel with path tracer
+  //  state = FOCUS_RENDERING;
+  //  num_tiles_w = w / imageTileSize + 1;
+  //  num_tiles_h = h / imageTileSize + 1;
+  //  tilesTotal = num_tiles_w * num_tiles_h;
+  //  tilesDone = 0;
 
-    // set the search focus
-    float mid_low = low + (high - low) / 3.0f; //-----low---mid_low---mid_high---high-----
-    float mid_high = low + 2 * (high - low) / 3.0f;
-    delta = curr - mid_low;
-    pt->focus(delta);
+  //  // set the search focus
+  //  float mid_low = low + (high - low) / 3.0f; //-----low---mid_low---mid_high---high-----
+  //  float mid_high = low + 2 * (high - low) / 3.0f;
+  //  delta = curr - mid_low;
+  //  pt->focus(delta);
 
-    // populate the tile work queue
-    {
-      for (auto y = static_cast<size_t>(left_top.y); y < h; y += imageTileSize) {
-        for (auto x = static_cast<size_t>(left_top.x); x < w; x += imageTileSize) {
-          workQueue.put_work(WorkItem(x, y, imageTileSize, imageTileSize));
-        }
-      }
-      fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
-      for (int i=0; i<numWorkerThreads; i++) {
-        workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
-      }
-      unique_lock<std::mutex> lk(m_done);
-      cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
-      lk.unlock();
-    }
-    //evaluate the focusBuffer
-    contrast1 = computeContrast(focusBuffer); 
-    focusBuffer->clear();
+  //  // populate the tile work queue
+  //  {
+  //    for (auto y = static_cast<size_t>(left_top.y); y < h; y += imageTileSize) {
+  //      for (auto x = static_cast<size_t>(left_top.x); x < w; x += imageTileSize) {
+  //        workQueue.put_work(WorkItem(x, y, imageTileSize, imageTileSize));
+  //      }
+  //    }
+  //    fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
+  //    for (int i=0; i<numWorkerThreads; i++) {
+  //      workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
+  //    }
+  //    unique_lock<std::mutex> lk(m_done);
+  //    cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
+  //    lk.unlock();
+  //  }
+  //  //evaluate the focusBuffer
+  //  contrast1 = computeContrast(focusBuffer); 
+  //  focusBuffer->clear();
 
-    // evaluate the second focus
-    state = FOCUS_RENDERING;
-    pt->focus(-delta);
-    delta = curr - mid_high;
-    pt->focus(delta);
-    curr = mid_high;
+  //  // evaluate the second focus
+  //  state = FOCUS_RENDERING;
+  //  pt->focus(-delta);
+  //  delta = curr - mid_high;
+  //  pt->focus(delta);
+  //  curr = mid_high;
 
-    // populate the tile work queue
-    {    
-      for (auto y = static_cast<size_t>(left_top.y); y < h; y += imageTileSize) {
-        for (auto x = static_cast<size_t>(left_top.x); x < w; x += imageTileSize) {
-          workQueue.put_work(WorkItem(x, y, imageTileSize, imageTileSize));
-        }
-      }
-      fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
-      for (int i=0; i<numWorkerThreads; i++) {
-        workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
-      }
-      unique_lock<std::mutex> lk(m_done);
-      cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
-      lk.unlock();
-    }
+  //  // populate the tile work queue
+  //  {    
+  //    for (auto y = static_cast<size_t>(left_top.y); y < h; y += imageTileSize) {
+  //      for (auto x = static_cast<size_t>(left_top.x); x < w; x += imageTileSize) {
+  //        workQueue.put_work(WorkItem(x, y, imageTileSize, imageTileSize));
+  //      }
+  //    }
+  //    fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
+  //    for (int i=0; i<numWorkerThreads; i++) {
+  //      workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
+  //    }
+  //    unique_lock<std::mutex> lk(m_done);
+  //    cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
+  //    lk.unlock();
+  //  }
 
-    //evaluate the focusBuffer
-    contrast2 = computeContrast(focusBuffer);
-    focusBuffer->clear();
-    if ( contrast1 > contrast2){
-      high = mid_high;
-      pt->focus(curr - mid_low);
-    }
-    else
-      low = mid_low;
-    if ( abs(contrast1 - contrast2) < threshold || abs(mid_high - mid_low) < threshold) {
-      is_focused = true;
-      fprintf(stdout, "[PathTracer] Autofocus complete!\n"); fflush(stdout);
-    }
-  }
-  state = original_state; // return with original state
-  delete focusBuffer;
+  //  //evaluate the focusBuffer
+  //  contrast2 = computeContrast(focusBuffer);
+  //  focusBuffer->clear();
+  //  if ( contrast1 > contrast2){
+  //    high = mid_high;
+  //    pt->focus(curr - mid_low);
+  //  }
+  //  else
+  //    low = mid_low;
+  //  if ( abs(contrast1 - contrast2) < threshold || abs(mid_high - mid_low) < threshold) {
+  //    is_focused = true;
+  //    fprintf(stdout, "[PathTracer] Autofocus complete!\n"); fflush(stdout);
+  //  }
+  //}
+  //state = original_state; // return with original state
+  //delete focusBuffer;
 }
 
 void RaytracedRenderer::worker_thread() {
