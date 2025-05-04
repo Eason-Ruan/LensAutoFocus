@@ -378,10 +378,19 @@ bool LensSystem::focus(const double focus_z) {
   return true;
 }
 
-void LensSystem::focus_delta(const double delta) {
-  for (auto & element : elements) {
+void LensSystem::focus_delta(const double object_delta) {
+  const double original_image_distance = - image_principal_z;
+  const double original_object_distance = original_image_distance * image_focal_length /  (original_image_distance - image_focal_length);
+  const double new_object_distance = original_object_distance + object_delta;
+  const double new_image_distance = image_focal_length * new_object_distance / (new_object_distance - image_focal_length);
+  // 计算需要移动的距离
+  const double delta = - new_image_distance - image_principal_z;
+  fprintf(stdout, "[lensSystem] Moving lens with sensor delta %.5f and new focus at %.5f \n", delta, new_object_distance); fflush(stdout);
+  // Move lens elements
+  for (auto& element : elements) {
     element.z += delta;
   }
+  // Recompute cardinal points
   compute_cardinal_points();
 }
 
@@ -426,10 +435,6 @@ bool LensSystem::compute_exit_pupil_bounds() {
         const double r = static_cast<double>(idx) / num_exit_pupil_bounds * 0.5 *
                          sqrt(width * width + height * height);
         exit_pupil_bounds[idx] = compute_exit_pupil_bound(Vector2D(r, 0));
-
-        //std::cout << "Finished " << idx << "th computation of exit pupil bounds"
-        //          << std::endl;
-        //std::cout << exit_pupil_bounds[idx] << std::endl;
       },
       16, num_exit_pupil_bounds);
 

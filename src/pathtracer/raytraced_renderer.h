@@ -140,7 +140,7 @@ public:
   /**
    * return the contrast of the focus buffer.
    */
-  float computeContrast(const HDRImageBuffer* buffer) const;
+  static float computeContrast(const HDRImageBuffer* buffer) ;
 
   /**
    * If the pathtracer is in READY, transition to VISUALIZE.
@@ -260,6 +260,8 @@ public:
   WorkQueue<WorkItem> workQueue;            ///< queue of work for the workers
   std::condition_variable cv_done;
   std::mutex m_done;
+  std::mutex f_done;
+  std::condition_variable f_cv_done;
   size_t tilesDone;
   size_t tilesTotal;
 
