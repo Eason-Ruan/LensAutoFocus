@@ -81,7 +81,8 @@ public:
              bool is_spectrum_sampling = false,
              bool is_autofocus = false,
              double focus_point_x = 0.0,
-             double focus_point_y = 0.0
+             double focus_point_y = 0.0,
+             bool is_image_sequence = true
              );
 
   /**
@@ -249,6 +250,7 @@ public:
   HDRImageBuffer* focusBuffer;
   Timer timer;                   ///< performance test timer
   std::vector<double> deltas;  /// update delta for each iteration
+  std::vector<double> contrasts; ///< contrast for each iteration
 
   std::vector<int> sampleCountBuffer;   ///< sample count buffer
 
@@ -277,9 +279,12 @@ public:
   std::string filename;
 
   // Spectrum Sampling //
-  bool is_spectrum_sampling = false; // decide whether to use spectrum or RGB
+  bool is_spectrum_sampling = false; /// decide whether to use spectrum or RGB
 
-  bool is_autofocus = false; // whether to use autofocus
+  bool is_autofocus = false; /// whether to use autofocus
+  bool is_autofocus_complete = false;
+
+  bool is_image_sequence = true; /// whether to render an image sequence
   Vector2D focus_lt;
 };
 
