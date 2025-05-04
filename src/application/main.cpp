@@ -247,6 +247,10 @@ int main(int argc, char **argv) {
       app->load_camera(cam_settings);
 
     app->render_to_file(output_file_name, x, y, dx, dy);
+    int status = system("python make_focus_video.py");
+    if (status != 0) {
+        std::cerr << "[PostProcess] Failed to generate video." << std::endl;
+    }
     return 0;
   }
 

@@ -416,20 +416,63 @@ void RaytracedRenderer::start_raytracing() {
 
 void RaytracedRenderer::render_to_file(string filename, size_t x, size_t y, size_t dx, size_t dy) {
   if (x == -1) {
-    unique_lock<std::mutex> lk(m_done);
-    start_raytracing();
+    /*unique_lock<std::mutex> lk(m_done);
+    start_raytracing(adjusted_focus);
     cv_done.wait(lk, [this]{ return state == DONE; });
     lk.unlock();
     save_image(filename);
-    fprintf(stdout, "[PathTracer] Job completed.\n");
+    fprintf(stdout, "[PathTracer] Job completed.\n");*/
+      float best_focus = autofocus(Vector2D(0, 0));
+      float delta = focalDistance - best_focus;
+      int iter = 10;
+      fprintf(stdout, "[PathTracer] A.\n");fflush(stdout);
+      std::string folder = filename;
+      if (!folder.empty() && folder.back() != '/' && folder.back() != '\\') {
+          folder += '/';  // 确保末尾有 '/'
+      }
+
+      for (int i = 0; i < iter; ++i) {
+          float adjusted_focus = focalDistance - delta * (static_cast<float>(i) / iter);
+
+          this->stop();// <-- 加上这句恢复到 READY 状态，否则 start_raytracing 会被跳过
+
+          std::unique_lock<std::mutex> lk(m_done);
+          start_raytracing(adjusted_focus);
+          cv_done.wait(lk, [this] { return state == DONE; });
+          lk.unlock();
+
+          std::stringstream ss;
+          ss << folder << "focus_" << i << ".png";  // 生成形如 ./image/focus_0.png
+          save_image(ss.str());
+
+          std::cout << "[PathTracer] Saved: " << ss.str() << " at focus = " << adjusted_focus << std::endl;
+          fprintf(stdout, "[PathTracer] myJob completed.\n");
+      }
   } else {
-    render_cell = true;
+    /*render_cell = true;
     cell_tl = Vector2D(x,y);
     cell_br = Vector2D(x+dx,y+dy);
     ImageBuffer buffer;
     raytrace_cell(buffer);
     save_image(filename, &buffer);
-    fprintf(stdout, "[PathTracer] Cell job completed.\n");
+    fprintf(stdout, "[PathTracer] Cell job completed.\n");*/
+      render_cell = true;
+      fprintf(stdout, "[PathTracer] B.\n");fflush(stdout);
+      cell_tl = Vector2D(x, y);
+      cell_br = Vector2D(x + dx, y + dy);
+      ImageBuffer buffer;
+      raytrace_cell(buffer);
+      std::string folder = filename;
+      fprintf(stdout, "[PathTracer] Entering render_else");
+      if (!folder.empty() && folder.back() != '/' && folder.back() != '\\') {
+          folder += '/';  // 确保末尾有 '/'
+      }
+      std::stringstream ss;
+      ss << folder << "focus_cell.png";  // 生成形如 ./image/focus_0.png
+      save_image(ss.str());
+      //save_image(filename, &buffer);
+      fprintf(stdout, "[PathTracer] Cell job completed.\n");
+
   }
 }
 

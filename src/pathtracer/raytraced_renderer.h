@@ -138,7 +138,7 @@ public:
   /**
    * If the pathtracer is in RENDER, set the camera focal distance to the vector.
    */
-  void autofocus(const Vector2D left_top);
+  float autofocus(const Vector2D left_top) ;
 
   /**
    * return the contrast of the focus buffer.
@@ -153,7 +153,7 @@ public:
   /**
    * If the pathtracer is in READY, transition to RENDERING.
    */
-  void start_raytracing();
+  void start_raytracing(float adjusted_focus);
 
   void render_to_file(std::string filename, size_t x, size_t y, size_t dx, size_t dy);
 
