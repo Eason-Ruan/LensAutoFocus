@@ -50,7 +50,11 @@ RaytracedRenderer::RaytracedRenderer(size_t ns_aa,
                        double lensRadius,
                        double focalDistance,
                        double gain,
-                       bool is_spectrum_sampling) {
+                       bool is_spectrum_sampling,
+                       bool is_autofocus,
+                       double focus_point_x,
+                        double focus_point_y
+                       ) {
   state = INIT;
 
   pt = new PathTracer();
@@ -72,6 +76,10 @@ RaytracedRenderer::RaytracedRenderer(size_t ns_aa,
   this->focalDistance = focalDistance;
 
   this->filename = filename;
+
+  this->is_spectrum_sampling = is_spectrum_sampling;
+  this->is_autofocus = is_autofocus;
+  this->focus_lt = Vector2D(focus_point_x, focus_point_y);
 
   if (envmap) {
     pt->envLight = new EnvironmentLight(envmap);
@@ -315,12 +323,14 @@ void RaytracedRenderer::start_raytracing() {
       
       fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
       // 设置为新的相机
-      cameraLens->lensSys->focus(focalDistance);
+      cameraLens->lensSys->focus(!is_autofocus ? focalDistance : 50000.0); // TODO: remove hard code
       fprintf(stdout, "[PathTracer] Computing default exit pupil bounds...\n"); fflush(stdout);
       cameraLens->lensSys->compute_exit_pupil_bounds();
       pt->camera = cameraLens;
       fprintf(stdout, "[PathTracer] Lens system default initialization complete.\n"); fflush(stdout);
-      autofocus(Vector2D(240,180)); // where do the autofocusing.
+      if (is_autofocus) {
+        autofocus(focus_lt);
+      }
     } else {
       if (cameraLens) {
         delete cameraLens;
@@ -709,7 +719,7 @@ void RaytracedRenderer::trace_focus_tile(const int tile_x, const int tile_y,
 
   for (size_t y = tile_start_y; y < tile_end_y; y++) {
     for (size_t x = tile_start_x; x < tile_end_x; x++) {
-      pt->raytrace_pixel(x, y, true, focus_buffer, 240, 180); // TODO remove hard code
+      pt->raytrace_pixel(x, y, true, focus_buffer, static_cast<int>(focus_lt.x), static_cast<int>(focus_lt.y));
     }
   }
 }
@@ -858,6 +868,7 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
 
     //evaluate the focusBuffer
     float contrast2 = computeContrast(focusBuffer);
+    fprintf(stdout, "[PathTracer] Contrast 1: %f Contrast 2: %f \n", contrast1, contrast2); fflush(stdout);
     focusBuffer->clear();
     if ( contrast1 > contrast2){
       high = mid_high;
@@ -865,7 +876,7 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
     }
     else
       low = mid_low;
-    if ( abs(contrast1 - contrast2) < threshold && abs(mid_high - mid_low) < threshold) {
+    if ( abs(contrast1 - contrast2) < threshold && abs(mid_high - mid_low) < threshold * (far - near)) {
       is_focused = true;
       fprintf(stdout, "[PathTracer] Autofocus complete!\n"); fflush(stdout);
     }

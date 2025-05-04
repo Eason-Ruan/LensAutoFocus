@@ -78,7 +78,10 @@ public:
              double lensRadius = 0.25, // TODO: change default value and implement radius change
              double focalDistance = 1500,
              double gain = 1.0,
-             bool is_spectrum_sampling = false
+             bool is_spectrum_sampling = false,
+             bool is_autofocus = false,
+             double focus_point_x = 0.0,
+             double focus_point_y = 0.0
              );
 
   /**
@@ -275,6 +278,9 @@ public:
 
   // Spectrum Sampling //
   bool is_spectrum_sampling = false; // decide whether to use spectrum or RGB
+
+  bool is_autofocus = false; // whether to use autofocus
+  Vector2D focus_lt;
 };
 
 }  // namespace CGL

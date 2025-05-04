@@ -37,7 +37,10 @@ Application::Application(AppConfig config, bool gl) {
     config.pathtracer_lensRadius,
     config.pathtracer_focalDistance,
     config.pathtracer_gain,
-    config.pathtracer_is_spectrum_sampling
+    config.pathtracer_is_spectrum_sampling,
+    config.is_autofocus,
+    config.focus_point_x,
+    config.focus_point_y
   );
   filename = config.pathtracer_filename;
 }

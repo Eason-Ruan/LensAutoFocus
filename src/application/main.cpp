@@ -123,12 +123,17 @@ int main(int argc, char **argv) {
       config.pathtracer_accumulate_bounces = settings.pathtracer_accumulate_bounces;
     }
   } else {
-    while ((opt = getopt(argc, argv, "s:S:l:t:m:o:e:h:H:f:r:c:b:d:a:p:v:V:g:")) !=
+    while ((opt = getopt(argc, argv, "s:S:l:t:m:o:e:h:H:f:F:r:c:b:d:a:A:p:v:V:g:")) !=
            -1) { // for each option...
       switch (opt) {
       case 'f':
         write_to_file = true;
         output_file_name = string(optarg);
+        break;
+      case 'F':
+        config.focus_point_x = atof(argv[optind - 1]);
+        config.focus_point_y = atof(argv[optind]);
+        optind ++;
         break;
       case 'r':
         w = atoi(argv[optind - 1]);
@@ -179,6 +184,10 @@ int main(int argc, char **argv) {
         config.pathtracer_samples_per_patch = atoi(argv[optind - 1]);
         config.pathtracer_max_tolerance = atof(argv[optind]);
         optind++;
+        break;
+      case 'A':
+        config.is_autofocus = true;
+        optind--;
         break;
       case 'H':
         config.pathtracer_direct_hemisphere_sample = true;

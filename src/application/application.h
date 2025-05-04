@@ -68,6 +68,10 @@ struct AppConfig {
     pathtracer_is_spectrum_sampling = false;
     is_output_video = false;
     output_video_config_filename = "";
+
+    is_autofocus = false;
+    focus_point_x = 0.0;
+    focus_point_y = 0.0;
   }
 
   size_t pathtracer_ns_aa;
@@ -94,6 +98,9 @@ struct AppConfig {
 
   double pathtracer_gain;
   bool pathtracer_is_spectrum_sampling; // decide whether to use spectrum or RGB
+  bool is_autofocus; // whether to use autofocus
+  double focus_point_x;
+  double focus_point_y;
   bool is_output_video;
   string output_video_config_filename; // TODO: realize video config file
 };
