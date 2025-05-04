@@ -18,6 +18,7 @@ namespace CGL {
         }
         [[nodiscard]] Ray generate_ray(double x, double y) const override;
         void focus_delta(double delta_distance) override;
+        void focus_mechanical(double delta_distance) override;
         LensSystem* lensSys;
         Prl2::Sampler* random_sampler;
         ~CameraLensSys() override {

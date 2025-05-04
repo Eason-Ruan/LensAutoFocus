@@ -211,5 +211,6 @@ Ray Camera::generate_ray(double x, double y) const {
 }
 
   void Camera::focus_delta(double delta_distance) {}
+  void Camera::focus_mechanical(double delta_distance) {}
 
 } // namespace CGL

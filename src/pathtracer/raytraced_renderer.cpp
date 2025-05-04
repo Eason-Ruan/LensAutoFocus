@@ -324,7 +324,10 @@ void RaytracedRenderer::start_raytracing() {
       
       fprintf(stdout, "[PathTracer] Focusing lens system...\n"); fflush(stdout);
       // 设置为新的相机
-      cameraLens->lensSys->focus(!is_autofocus || is_autofocus_complete ? focalDistance : 50000.0); // TODO: remove hard code
+      cameraLens->lensSys->focus(!is_autofocus ? focalDistance : 5000000.0); // TODO: remove hard code
+      if (is_autofocus && is_autofocus_complete) {
+        cameraLens->lensSys->focus_mechanical_delta(focalDistance);
+      }
       fprintf(stdout, "[PathTracer] Computing default exit pupil bounds...\n"); fflush(stdout);
       cameraLens->lensSys->compute_exit_pupil_bounds();
       pt->camera = cameraLens;
@@ -425,8 +428,7 @@ void RaytracedRenderer::render_to_file(string filename, size_t x, size_t y, size
       save_image(filename);
       fprintf(stdout, "[PathTracer] Job completed.\n");
     } else {
-      constexpr double delta_step = 10000.0; /// steps for image
-      constexpr double focus_init = 50000.0; /// initial focus
+      constexpr double delta_step = 0.3; /// steps for image
       fprintf(stdout, "[PathTracer] A.\n");fflush(stdout);
       std::string folder = filename;
       if (!folder.empty() && folder.back() != '/' && folder.back() != '\\') {
@@ -463,7 +465,7 @@ void RaytracedRenderer::render_to_file(string filename, size_t x, size_t y, size
         }
 
         while (!is_endpointed || abs(delta_interval) <=  abs(delta)) {
-          focalDistance = focus_init + delta_sum + delta_interval;
+          focalDistance = delta_sum + delta_interval;
           state = READY;
 
           std::unique_lock<std::mutex> lk(m_done);
@@ -862,20 +864,22 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
   constexpr size_t h = 32;
   focusBuffer = new HDRImageBuffer(w, h);
   bool is_focused = false;
-  constexpr float near = 600.0f;
-  constexpr float far = 50000.0f;
-  constexpr int max_iter = 15;
+  constexpr double mechanical_far = - 4.5454545454;
+  constexpr double mechanical_near = 0.0;
+  constexpr int max_iter = 60;
   constexpr float threshold = 0.1f;
-  float low = near;
-  float high = far;
-  float mid_low = near;
-  float mid_high = far;
-  float curr = far; // assume low <= curr <= high always stands
+  constexpr float range_threshold = 0.01f;
+  float low = mechanical_far;
+  float high = mechanical_near;
+  float mid_low = mechanical_far;
+  float mid_high = mechanical_near;
+  float curr = mechanical_near; // assume low <= curr <= high always stands
   int iter = 0;
   float delta;
   bool is_final_revert = false;
 
   while (!is_focused) {
+    is_final_revert = false;
     if (iter++ > max_iter) {
       fprintf(stdout, "[PathTracer] Autofocus failed!\n"); fflush(stdout);
       break;
@@ -948,7 +952,7 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
     //evaluate the focusBuffer
     const float contrast2 = computeContrast(focusBuffer);
     contrasts.push_back(contrast2);
-    fprintf(stdout, "[PathTracer] Contrast 1: %f Contrast 2: %f \n", contrast1, contrast2); fflush(stdout);
+    fprintf(stdout, "[PathTracer] Contrast 1: %f Contrast 2: %f with range %f - %f \n", contrast1, contrast2, mid_low, mid_high); fflush(stdout);
     focusBuffer->clear();
     if ( contrast1 > contrast2){
       high = mid_high;
@@ -956,7 +960,7 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
     }else {
       low = mid_low;
     }
-    if ( abs(contrast1 - contrast2) < threshold && abs(mid_high - mid_low) < threshold * (far - near)) {
+    if ( abs(contrast1 - contrast2) < threshold && abs(mid_high - mid_low) < range_threshold * (mechanical_near - mechanical_far)) {
       is_focused = true;
       fprintf(stdout, "[PathTracer] Autofocus complete!\n"); fflush(stdout);
       is_autofocus_complete = true;
@@ -1019,7 +1023,7 @@ void RaytracedRenderer::focus_thread() {
     {
       lock_guard<std::mutex> lk(f_done);
       ++tilesDone;
-      cout << "\r[PathTracer] Focusing... " << int(static_cast<double>(tilesDone) / static_cast<double>(tilesTotal) * 100) << "% \n";
+      cout << "\r[PathTracer] Focusing... " << int(static_cast<double>(tilesDone) / static_cast<double>(tilesTotal) * 100) << "%";
       cout.flush();
     }
   }

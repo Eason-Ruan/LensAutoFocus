@@ -93,6 +93,9 @@ class Camera {
   [[nodiscard]] Ray generate_ray_for_thin_lens(double x, double y, double rndR, double rndTheta) const;
 
   virtual void focus_delta (double delta_distance);
+
+  virtual void focus_mechanical (double delta_distance);
+
   // Lens aperture and focal distance for depth of field effects.
   double lensRadius;
   double focalDistance;

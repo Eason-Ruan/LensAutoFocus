@@ -304,7 +304,7 @@ void PathTracer::raytrace_pixel(const size_t x, const size_t y, const bool is_fo
 
 
 void PathTracer::focus(double delta_distance) const {
-  camera->focus_delta(delta_distance);
+  camera->focus_mechanical(delta_distance);
 }
 
 } // namespace CGL

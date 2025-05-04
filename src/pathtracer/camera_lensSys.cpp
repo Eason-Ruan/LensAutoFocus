@@ -46,6 +46,12 @@ namespace CGL {
     void CameraLensSys::focus_delta(const double delta_distance) {
         lensSys->focus_delta(delta_distance);
         lensSys->compute_exit_pupil_bounds();
-        fprintf(stdout, "[CameraLensSys] Focused lens system by %.2f mm \n", delta_distance); fflush(stdout);
+        fprintf(stdout, "[CameraLensSys] Focused lens system by object delta distance %.2f mm \n", delta_distance); fflush(stdout);
+    }
+
+    void CameraLensSys::focus_mechanical(const double delta_distance) {
+        lensSys->focus_mechanical_delta(delta_distance);
+        lensSys->compute_exit_pupil_bounds();
+        fprintf(stdout, "[CameraLensSys] Focused lens system by mechanical delta distance %.2f mm \n", delta_distance); fflush(stdout);
     }
 }
