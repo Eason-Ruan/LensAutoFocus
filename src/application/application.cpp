@@ -454,14 +454,14 @@ void Application::keyboard_event(int key, int event, unsigned char mods) {
           case ';': case '\'':
             renderer->stop();
             renderer->key_press(key);
-            renderer->start_raytracing(50);
+            renderer->start_raytracing();
             break;
           case 'C': 
             renderer->key_press(key);
             break;
           case 'r': case 'R':
             renderer->stop();
-            renderer->start_raytracing(50);
+            renderer->start_raytracing();
             break;
           case 'd': case 'D':
             camera.dump_settings(filename + "_cam_settings.txt");
@@ -477,7 +477,7 @@ void Application::keyboard_event(int key, int event, unsigned char mods) {
             break;
           case 'r': case 'R':
             renderer->stop();
-            renderer->start_raytracing(50);
+            renderer->start_raytracing();
             mode = RENDER_MODE;
             break;
           case ' ':
@@ -493,7 +493,7 @@ void Application::keyboard_event(int key, int event, unsigned char mods) {
         switch(key) {
           case 'r': case 'R':
             set_up_pathtracer();
-            renderer->start_raytracing(50);
+            renderer->start_raytracing();
             mode = RENDER_MODE;
             break;
           case 'v': case 'V':
@@ -571,14 +571,14 @@ void Application::mouse_released(e_mouse_button b) {
         renderer->cell_br = br;
         cout << "[renderer] Selected cell measures " << (int)(br.x-tl.x) << "x" << (int)(br.y-tl.y) << " pixels" << endl;
         renderer->stop();
-        renderer->start_raytracing(50);
+        renderer->start_raytracing();
       }
       break;
     case RIGHT:
       if (mode == RENDER_MODE) {
         renderer->autofocus(Vector2D(mouseX, screenH - mouseY));
         renderer->stop();
-        renderer->start_raytracing(50);
+        renderer->start_raytracing();
       }
       rightDown = false;
       break;

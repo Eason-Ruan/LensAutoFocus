@@ -63,7 +63,7 @@ public:
     /**
      * If the pathtracer is in RENDER, set the camera focal distance to the vector.
      */
-    virtual float autofocus(Vector2D loc) = 0;
+    virtual void autofocus(Vector2D loc) = 0;
 
     /**
      * If the pathtracer is in READY, transition to VISUALIZE.
@@ -73,7 +73,7 @@ public:
     /**
      * If the pathtracer is in READY, transition to RENDERING.
      */
-    virtual void start_raytracing(float adjusted_focus) = 0;
+    virtual void start_raytracing() = 0;
 
     virtual void render_to_file(std::string filename, size_t x, size_t y, size_t dx, size_t dy) = 0;
 
