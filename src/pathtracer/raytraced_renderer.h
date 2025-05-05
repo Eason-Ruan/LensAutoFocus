@@ -82,7 +82,7 @@ public:
              bool is_autofocus = false,
              double focus_point_x = 0.0,
              double focus_point_y = 0.0,
-             bool is_image_sequence = true
+             bool is_image_sequence = false
              );
 
   /**
