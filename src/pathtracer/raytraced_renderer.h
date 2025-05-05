@@ -175,7 +175,11 @@ public:
    */
   void save_sampling_rate_image(std::string filename);
 
- private:
+  static void smooth(vector<double> &samples);
+
+  static double DDEPM(vector<double> &samples);
+
+private:
 
   /**
    * Used in initialization.

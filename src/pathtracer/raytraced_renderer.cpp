@@ -18,7 +18,7 @@
 #include "scene/sphere.h"
 #include "scene/triangle.h"
 #include "scene/light.h"
-
+#include <Eigen/Dense>
 using namespace CGL::SceneObjects;
 
 using std::min;
@@ -863,23 +863,15 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
   constexpr size_t w = 32;
   constexpr size_t h = 32;
   focusBuffer = new HDRImageBuffer(w, h);
-  bool is_focused = false;
+  constexpr int max_iter = 60;
   constexpr double mechanical_far = - 4.5454545454;
   constexpr double mechanical_near = 0.0;
-  constexpr int max_iter = 60;
-  constexpr float threshold = 0.1f;
-  constexpr float range_threshold = 0.01f;
-  float low = mechanical_far;
-  float high = mechanical_near;
-  float mid_low = mechanical_far;
-  float mid_high = mechanical_near;
-  float curr = mechanical_near; // assume low <= curr <= high always stands
+  constexpr double coarse_step = 0.1;
+  bool is_focused = false;
+  bool coarse_focus = false;
   int iter = 0;
-  float delta;
-  bool is_final_revert = false;
 
-  while (!is_focused) {
-    is_final_revert = false;
+  while (!coarse_focus) {
     if (iter++ > max_iter) {
       fprintf(stdout, "[PathTracer] Autofocus failed!\n"); fflush(stdout);
       break;
@@ -892,45 +884,6 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
     num_tiles_h = h / imTS_size + 1;
     tilesTotal = num_tiles_w * num_tiles_h;
     tilesDone = 0;
-
-    // set the search focus
-    mid_low = low + (high - low) / 3.0f; //-----low---mid_low---mid_high---high-----
-    mid_high = low + 2 * (high - low) / 3.0f;
-    delta = mid_low - curr;
-    deltas.push_back(delta);
-    fprintf(stdout, "[PathTracer] Focusing with delta %.2f \n", delta); fflush(stdout);
-    pt->focus(delta);
-
-    // populate the tile work queue
-    {
-      workerDoneCount = 0;
-      unique_lock<std::mutex> lk(f_done);
-      for (auto y = static_cast<size_t>(left_top.y); y < left_top.y + h; y += imTS_size) {
-        for (auto x = static_cast<size_t>(left_top.x); x < left_top.x + w; x += imTS_size) {
-          workQueue.put_work(WorkItem(x, y, imTS_size, imTS_size));
-        }
-      }
-      fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
-      for (int i=0; i<numWorkerThreads; i++) {
-        workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
-      }
-
-      f_cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
-      lk.unlock();
-    }
-    //evaluate the focusBuffer
-    const float contrast1 = computeContrast(focusBuffer);
-    contrasts.push_back(contrast1);
-    focusBuffer->clear();
-
-    // evaluate the second focus
-    state = FOCUS_RENDERING;
-    tilesDone = 0;
-    delta = - delta + mid_high - curr;
-    deltas.push_back(delta);
-    fprintf(stdout, "[PathTracer] Focusing with delta %.2f \n", delta); fflush(stdout);
-    pt->focus(delta);
-    curr = mid_high;
 
     // populate the tile work queue
     {
@@ -948,30 +901,8 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
       f_cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
       lk.unlock();
     }
+  }
 
-    //evaluate the focusBuffer
-    const float contrast2 = computeContrast(focusBuffer);
-    contrasts.push_back(contrast2);
-    fprintf(stdout, "[PathTracer] Contrast 1: %f Contrast 2: %f with range %f - %f \n", contrast1, contrast2, mid_low, mid_high); fflush(stdout);
-    focusBuffer->clear();
-    if ( contrast1 > contrast2){
-      high = mid_high;
-      is_final_revert = true;
-    }else {
-      low = mid_low;
-    }
-    if ( abs(contrast1 - contrast2) < threshold && abs(mid_high - mid_low) < range_threshold * (mechanical_near - mechanical_far)) {
-      is_focused = true;
-      fprintf(stdout, "[PathTracer] Autofocus complete!\n"); fflush(stdout);
-      is_autofocus_complete = true;
-    }
-  }
-  if (is_final_revert) {
-    delta = mid_low - curr;
-    pt->focus(delta);
-    deltas.push_back(delta);
-    contrasts.push_back(contrasts[contrasts.size()-2]);
-  }
   state = original_state; // return with original state
   delete focusBuffer;
   workerDoneCount = 0;
@@ -1110,5 +1041,63 @@ void RaytracedRenderer::save_sampling_rate_image(string filename) {
   
   delete[] frame_out;
 }
+
+void RaytracedRenderer::smooth(vector<double>& samples) {
+  constexpr double m = 5.0;
+  constexpr double r = 2 / (m + 1);
+  for (int i = 1; i < samples.size(); i ++) {
+    samples[i] = samples[i - 1] * ( 1 - r) + samples[i] * r;
+  }
+}
+
+double RaytracedRenderer::DDEPM(vector<double>& samples) {
+  const size_t n = samples.size();
+  if (n < 4) { // 至少需要4个数据才能计算
+    throw std::runtime_error("Not enough data points (need at least 4)");
+  }
+  vector<double> samples_1(n);
+  for (int i  = 0; i < samples.size(); i++) {
+    samples_1[i] = 0.;
+    for (int j = 0; j < i + 1; j++) {
+      samples_1[i] += samples[j];
+    }
+  }
+  for (int i = 0; i < samples_1.size(); i++) {
+    samples_1[i] /= (i + 1);
+  }
+  Eigen::MatrixXd X(n - 2, 2);
+  Eigen::MatrixXd Y(n - 2, 1);
+  for (int i = 0; i < n - 2; i++) {
+    X(i, 0) = samples_1[i + 1];
+    X(i, 1) = samples_1[i];
+    Y(i, 0) = samples_1[i + 2];
+  }
+  Eigen::MatrixXd theta(2, 1);
+  theta = (X.transpose() * X).inverse() * X.transpose() * Y;
+  const double a = theta(0,0);
+  const double b = theta(0,1);
+  const double delta_squared = b * b - 4 * a * a;
+  double x_1_p;
+  if (delta_squared == 0) {
+    const double r = - b / 2 * a;
+    const double c2 = (samples[0] * (2 * r - 1)  - samples[1])/ pow(r, 2);
+    const double c1 = (samples[0] * (1 - r)  + samples[1])/ pow(r, 2);
+    x_1_p = (c1 + c2 * static_cast<double>(n + 1)) * pow(r, n + 1);
+  }else if (delta_squared > 0) {
+    const double r1 = (- b  + sqrt(delta_squared)) / 2 * a;
+    const double r2 = (- b  - sqrt(delta_squared)) / 2 * a;
+    const double c1 = (r1 * samples[0] - samples[0] - samples[1]) / (r1 * r2 - r2 * r2);
+    const double c2 = (r2 * samples[0] - samples[0] - samples[1]) / (r1 * r2 - r1 * r1);
+    x_1_p = c1 * pow(r1, n + 1) + c2 * pow(r2, n + 1);
+  } else {
+    const double rou = sqrt(b);
+    const double theta = atan(- sqrt(4 * b - a * a)/ a);
+    const double c1 = (samples[0] * rou * rou * cos(2 * theta) - samples[0] * rou * cos(theta) - samples[1] * rou * cos(theta)) / (pow(rou, 3) * (sin(theta) * cos(2 * theta) - cos(theta) * sin(2 * theta)));
+    const double c2 = (samples[0] * rou * sin( theta) + samples[1] * rou * sin(theta) - samples[0] * rou * rou * sin(2 * theta)) / (pow(rou, 3) * (sin(theta) * cos(2 * theta) - cos(theta) * sin(2 * theta)));
+    x_1_p = c1 * pow(rou, n + 1) * cos(static_cast<double>(n + 1) * theta) + c2 * pow(rou, n + 1) * sin(static_cast<double>(n + 1) * theta);
+  }
+  return x_1_p - samples_1.back();
+}
+
 
 }  // namespace CGL
