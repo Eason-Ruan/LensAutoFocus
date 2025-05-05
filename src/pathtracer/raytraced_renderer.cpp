@@ -6,6 +6,9 @@
 #include <random>
 #include <algorithm>
 #include <sstream>
+#include <fstream>
+#include <vector>
+#include <string>
 
 #include "camera_lensSys.h"
 #include "CGL/CGL.h"
@@ -443,6 +446,7 @@ void RaytracedRenderer::render_to_file(string filename, size_t x, size_t y, size
 
       std::unique_lock<std::mutex> lk(m_done);
       start_raytracing();
+      save_deltas_and_contrasts(folder + "focus.csv");
       cv_done.wait(lk, [this] { return state == DONE; });
       lk.unlock();
       std::stringstream ss;
@@ -1098,6 +1102,49 @@ double RaytracedRenderer::DDEPM(vector<double>& samples) {
   }
   return x_1_p - samples_1.back();
 }
+
+  void RaytracedRenderer::save_deltas_and_contrasts(const std::string& path) const {
+    std::vector<std::string> deltas_row;
+    std::vector<std::string> contrasts_row;
+    deltas_row.reserve(deltas.size());
+    contrasts_row.reserve(deltas.size());
+    deltas_row.emplace_back("delta");
+    contrasts_row.emplace_back("contrast");
+    for (const double& d : deltas) {
+      deltas_row.emplace_back(to_string(d));
+    }
+    for (const double& c : contrasts) {
+      contrasts_row.emplace_back(to_string(c));
+    }
+    std::vector<std::vector<std::string>> rows = {deltas_row, contrasts_row};
+    save_csv_plain(path, rows);
+  }
+
+  void RaytracedRenderer::save_csv_plain(const std::string& path,
+                                         const std::vector<std::vector<std::string>>& rows)
+  {
+    std::ofstream file(path);
+    if (!file) throw std::ios_base::failure("无法打开文件");
+
+    for (const auto& row : rows) {
+      for (std::size_t i = 0; i < row.size(); ++i) {
+        // 若字段里出现引号或逗号，需要做转义
+        std::string field = row[i];
+        bool need_quote = field.find_first_of(",\"\n") != std::string::npos;
+        if (need_quote) {
+          // 把 " 变成 "" 再外层加引号
+          std::string escaped;
+          escaped.reserve(field.size());
+          for (char c : field)
+            (c == '"' ? escaped += "\"\"" : escaped += c);
+          field = "\"" + escaped + "\"";
+        }
+        file << field;
+        if (i + 1 < row.size()) file << ',';
+      }
+      file << '\n';
+    }
+  }
 
 
 }  // namespace CGL

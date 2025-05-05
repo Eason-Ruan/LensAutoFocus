@@ -179,6 +179,10 @@ public:
 
   static double DDEPM(vector<double> &samples);
 
+  void save_deltas_and_contrasts(const std::string &path) const;
+
+  static void save_csv_plain(const std::string &path, const std::vector<std::vector<std::string>> &rows);
+
 private:
 
   /**
