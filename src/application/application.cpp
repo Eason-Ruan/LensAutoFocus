@@ -40,7 +40,8 @@ Application::Application(AppConfig config, bool gl) {
     config.pathtracer_is_spectrum_sampling,
     config.is_autofocus,
     config.focus_point_x,
-    config.focus_point_y
+    config.focus_point_y,
+    config.is_output_video
   );
   filename = config.pathtracer_filename;
 }

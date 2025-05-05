@@ -426,6 +426,7 @@ void RaytracedRenderer::render_to_file(string filename, size_t x, size_t y, size
     if (!is_image_sequence) {
       unique_lock<std::mutex> lk(m_done);
       start_raytracing();
+      save_deltas_and_contrasts("focus.csv");
       cv_done.wait(lk, [this]{ return state == DONE; });
       lk.unlock();
       save_image(filename);
@@ -870,26 +871,117 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
   constexpr int max_iter = 60;
   constexpr double mechanical_far = - 4.5454545454;
   constexpr double mechanical_near = 0.0;
-  constexpr double coarse_step = 0.1;
+  constexpr double coarse_step = -0.6;
+  constexpr double threshold = 0.05;
   bool is_focused = false;
   bool coarse_focus = false;
-  int iter = 0;
+  double curr = mechanical_near;
+  const int imTS_size = imageTileSize / 4;
+  num_tiles_w = w / imTS_size+ 1;
+  num_tiles_h = h / imTS_size + 1;
+  tilesTotal = num_tiles_w * num_tiles_h;
 
   while (!coarse_focus) {
-    if (iter++ > max_iter) {
-      fprintf(stdout, "[PathTracer] Autofocus failed!\n"); fflush(stdout);
-      break;
-    }
+    vector<double> samples;
+    for (int j = 0 ; j < 4; j ++) {
+      if (curr + coarse_step < mechanical_far) {
+        auto temp = samples;
+        samples.clear();
+        if (contrasts.size() < 4) {
+          std::cerr << "contrasts.size() too small " << contrasts.size() << std::endl;
+        }
+        for (int i = 0; i < 4 - j; i++) {
+          samples.push_back(contrasts[contrasts.size() - 4 + j  + i]);
+        }
+        for (const double i : temp) {
+          samples.push_back(i);
+        }
+        coarse_focus = true;
+        break;
+      }
 
-    // TODO: sampling each pixel with path tracer
+      if (deltas.size() != 0) {
+        pt->focus(coarse_step);
+        curr += coarse_step;
+        deltas.push_back(coarse_step);
+      } else {
+        deltas.push_back(0);
+      }
+      focusBuffer->clear();
+      state = FOCUS_RENDERING;
+      tilesDone = 0;
+
+      // populate the tile work queue
+      {
+        workerDoneCount = 0;
+        unique_lock<std::mutex> lk(f_done);
+        for (auto y = static_cast<size_t>(left_top.y); y < left_top.y + h; y += imTS_size) {
+          for (auto x = static_cast<size_t>(left_top.x); x < left_top.x + w; x += imTS_size) {
+            workQueue.put_work(WorkItem(x, y, imTS_size, imTS_size));
+          }
+        }
+        fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
+        for (int i =0; i < numWorkerThreads; i++) {
+          workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
+        }
+        f_cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
+        lk.unlock();
+      }
+      double contrast = computeContrast(focusBuffer);
+
+      contrasts.push_back(contrast);
+      samples.push_back(contrast);
+    }
+    smooth(samples);
+    for (int i = 0; i < 3; i++) {
+      samples.push_back(DDEPM(samples));
+    }
+    if (!(samples.back() > samples[samples.size() - 2] && samples.back() > samples[samples.size() - 3]) && samples[samples.size() - 3] > samples[samples.size() - 4]) {
+      coarse_focus = true;
+    }
+  }
+  int i_second_large = 0;
+  int i_large = 0;
+  double left;
+  double right;
+  double l_contrast;
+  double r_contrast;
+  double second_max  = 0;
+  double max = contrasts[0];
+  for  (int i = 0; i < contrasts.size(); i++) {
+    if (contrasts[i] > max) {
+      second_max = max;
+      max = contrasts[i];
+      i_second_large = i_large;
+      i_large = i;
+      continue;
+    }
+    if (contrasts[i] > second_max) {
+      second_max = contrasts[i];
+      i_second_large = i;
+    }
+  }
+  if (i_second_large > i_large) {
+    right = coarse_step * i_large + mechanical_near;
+    left = right + coarse_step;
+    r_contrast = contrasts[i_large];
+    l_contrast = contrasts[i_second_large + 1];
+  } else {
+    left = coarse_step * i_large + mechanical_near;
+    right = left - coarse_step;
+    r_contrast = contrasts[i_large  - 1];
+    l_contrast = contrasts[i_large];
+  }
+  while (!is_focused) {
+    const double mid = (left + right) / 2;
+    const double delta = mid - curr;
+    pt->focus(delta);
+    curr = mid;
+
+    focusBuffer->clear();
     state = FOCUS_RENDERING;
-    const int imTS_size = imageTileSize / 4;
-    num_tiles_w = w / imTS_size+ 1;
-    num_tiles_h = h / imTS_size + 1;
-    tilesTotal = num_tiles_w * num_tiles_h;
     tilesDone = 0;
 
-    // populate the tile work queue
     {
       workerDoneCount = 0;
       unique_lock<std::mutex> lk(f_done);
@@ -899,17 +991,32 @@ void RaytracedRenderer::autofocus(const Vector2D left_top) {
         }
       }
       fprintf(stdout, "[PathTracer] Focusing... "); fflush(stdout);
-      for (int i=0; i < numWorkerThreads; i++) {
+      for (int i =0; i < numWorkerThreads; i++) {
         workerThreads[i] = new std::thread(&RaytracedRenderer::focus_thread, this);
       }
       f_cv_done.wait(lk, [this]{ return state == FOCUS_RENDER_DONE; });
       lk.unlock();
     }
-  }
+    double m_contrast = computeContrast(focusBuffer);
+    contrasts.push_back(m_contrast);
+    deltas.push_back(delta);
 
+    if ((abs(m_contrast - l_contrast) <= threshold || abs(m_contrast - r_contrast) <= threshold) && (m_contrast > max || abs(max - m_contrast) <= threshold)) {
+      is_focused = true;
+    } else {
+      if (l_contrast > r_contrast) {
+        r_contrast = m_contrast;
+        right = mid;
+      } else {
+        l_contrast = m_contrast;
+        left = mid;
+      }
+    }
+  }
   state = original_state; // return with original state
   delete focusBuffer;
   workerDoneCount = 0;
+  is_autofocus_complete = true;
 }
 
 void RaytracedRenderer::worker_thread() {
@@ -1066,30 +1173,27 @@ double RaytracedRenderer::DDEPM(vector<double>& samples) {
       samples_1[i] += samples[j];
     }
   }
-  for (int i = 0; i < samples_1.size(); i++) {
-    samples_1[i] /= (i + 1);
-  }
   Eigen::MatrixXd X(n - 2, 2);
   Eigen::MatrixXd Y(n - 2, 1);
   for (int i = 0; i < n - 2; i++) {
-    X(i, 0) = samples_1[i + 1];
-    X(i, 1) = samples_1[i];
+    X(i, 0) = - samples_1[i + 1];
+    X(i, 1) = - samples_1[i];
     Y(i, 0) = samples_1[i + 2];
   }
   Eigen::MatrixXd theta(2, 1);
   theta = (X.transpose() * X).inverse() * X.transpose() * Y;
   const double a = theta(0,0);
-  const double b = theta(0,1);
-  const double delta_squared = b * b - 4 * a * a;
+  const double b = theta(1,0);
+  const double delta_squared = pow(a, 2) - 4 * b;
   double x_1_p;
   if (delta_squared == 0) {
-    const double r = - b / 2 * a;
+    const double r = - a / 2;
     const double c2 = (samples[0] * (2 * r - 1)  - samples[1])/ pow(r, 2);
     const double c1 = (samples[0] * (1 - r)  + samples[1])/ pow(r, 2);
     x_1_p = (c1 + c2 * static_cast<double>(n + 1)) * pow(r, n + 1);
   }else if (delta_squared > 0) {
-    const double r1 = (- b  + sqrt(delta_squared)) / 2 * a;
-    const double r2 = (- b  - sqrt(delta_squared)) / 2 * a;
+    const double r1 = (- a + sqrt(delta_squared)) / 2;
+    const double r2 = (- a  - sqrt(delta_squared)) / 2;
     const double c1 = (r1 * samples[0] - samples[0] - samples[1]) / (r1 * r2 - r2 * r2);
     const double c2 = (r2 * samples[0] - samples[0] - samples[1]) / (r1 * r2 - r1 * r1);
     x_1_p = c1 * pow(r1, n + 1) + c2 * pow(r2, n + 1);
@@ -1097,8 +1201,8 @@ double RaytracedRenderer::DDEPM(vector<double>& samples) {
     const double rou = sqrt(b);
     const double theta = atan(- sqrt(4 * b - a * a)/ a);
     const double c1 = (samples[0] * rou * rou * cos(2 * theta) - samples[0] * rou * cos(theta) - samples[1] * rou * cos(theta)) / (pow(rou, 3) * (sin(theta) * cos(2 * theta) - cos(theta) * sin(2 * theta)));
-    const double c2 = (samples[0] * rou * sin( theta) + samples[1] * rou * sin(theta) - samples[0] * rou * rou * sin(2 * theta)) / (pow(rou, 3) * (sin(theta) * cos(2 * theta) - cos(theta) * sin(2 * theta)));
-    x_1_p = c1 * pow(rou, n + 1) * cos(static_cast<double>(n + 1) * theta) + c2 * pow(rou, n + 1) * sin(static_cast<double>(n + 1) * theta);
+    const double c2 = (samples[0] * rou * sin(theta) + samples[1] * rou * sin(theta) - samples[0] * rou * rou * sin(2 * theta)) / (pow(rou, 3) * (sin(theta) * cos(2 * theta) - cos(theta) * sin(2 * theta)));
+    x_1_p = c1 * pow(rou, n + 1) * sin(theta * static_cast<double>(n + 1)) + c2 * pow(rou, n + 1) * cos(static_cast<double>(n + 1) * theta);
   }
   return x_1_p - samples_1.back();
 }
